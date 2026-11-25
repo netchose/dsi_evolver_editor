@@ -2,17 +2,11 @@
 
 A browser-based sound editor and librarian for the **Dave Smith Instruments Evolver (desktop mono)**, written in plain HTML/CSS/JavaScript and using the Web MIDI API.
 
-![img.png](img/img.png)
-
-![img.png](img/img2.png)
-
-![img.png](img/3.png)
-
 It runs from one self-contained file (`evolver-editor.html`) with no build step, no dependencies and no server-side code.
 
 Unlike the classic editors, it can **control several Evolvers at the same time**, with one tab per unit.
 
-> Not affiliated with or endorsed by Sequential / Dave Smith Instruments. "Evolver" is used only to name the hardware this tool talks to.
+> Use at your own risk — see [Disclaimer](#disclaimer). Not affiliated with or endorsed by Sequential / Dave Smith Instruments. "Evolver" is used only to name the hardware this tool talks to.
 
 ---
 
@@ -339,6 +333,16 @@ This project was designed and written with **Claude** (Anthropic). If you want a
 3. Test it with your Evolver. Pull requests are welcome if you think others will benefit.
 
 Issues with clear hardware reports (OS version, what you clicked, what the Evolver displayed) are very welcome too.
+
+## Disclaimer
+
+**Use this editor at your own risk.** The author accepts no liability for any damage or loss that results from using it, in particular:
+
+- **Data loss.** *Write…* and incoming dumps overwrite programs on the synth, and you cannot undo this from the editor.
+- **Unexpected behaviour** of your Evolver or of other MIDI equipment.
+- **Hardware damage of any kind.**
+
+Back up your banks with another tool before you write programs. The software is provided "as is", without warranty of any kind, as stated in the MIT license.
 
 ## License
 
