@@ -7,7 +7,9 @@ It runs from one self-contained file (`evolver-editor.html`) with no build step,
 Unlike the classic editors, it can **control several Evolvers at the same time**, with one tab per unit.
 
 > Use at your own risk — see [Disclaimer](#disclaimer). Not affiliated with or endorsed by Sequential / Dave Smith Instruments. "Evolver" is used only to name the hardware this tool talks to.
-
+![img.png](img/img.png)
+![img2.png](img/img2.png)
+![3.png](img/3.png)
 ---
 
 ## Features
