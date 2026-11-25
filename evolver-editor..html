@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evolver Web Editor</title>
+<style>
+:root{
+  --bg:#121418; --panel:#1b1f25; --panel2:#20252c; --edge:#2d343e; --txt:#dde2e9; --dim:#8b95a4;
+  --acc:#f2a33a; --acc-dim:#6b4a1d; --cool:#5ab8db; --bad:#e2574c; --ok:#5fc27e;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+*{box-sizing:border-box}
+html{font-size:calc(12px * var(--ui,1.5))}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:1rem/1.3 "Segoe UI",system-ui,sans-serif}
+button,select,input{font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--edge);border-radius:0.333rem;padding:0.333rem 0.667rem}
+button{cursor:pointer}
+button:hover{border-color:var(--acc)}
+button.warn{border-color:#7a3b30}
+button.warn:hover{border-color:var(--bad);color:#fff}
+select{padding:0.25rem 0.333rem;max-width:12.5rem}
+input[type=text]{padding:0.333rem 0.5rem}
+label{color:var(--dim);display:inline-flex;align-items:center;gap:0.417rem}
+
+/* top bar */
+#top{display:flex;align-items:center;gap:1.167rem;padding:0.667rem 1.167rem;background:#0d0f12;border-bottom:1px solid var(--edge)}
+.brand{font-weight:700;letter-spacing:.18em;color:var(--acc)}
+.brand span{font-weight:400;letter-spacing:.05em;color:var(--dim);margin-left:0.667rem;text-transform:lowercase}
+#tabs{display:flex;gap:0.333rem;flex:1}
+#tabs button{border-radius:0.333rem 0.333rem 0 0;padding:0.417rem 1.167rem;display:flex;align-items:center;gap:0.583rem}
+#tabs button.on{background:var(--panel);border-color:var(--acc);color:#fff}
+#tabs .dot{width:0.583rem;height:0.583rem;border-radius:50%;background:#444}
+#tabs .dot.ok{background:var(--ok)}
+#midiStatus{color:var(--dim);font-size:0.917rem}
+#midiStatus.err{color:var(--bad)}
+
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:0.833rem;padding:0.583rem 1.167rem;background:var(--panel);border-bottom:1px solid var(--edge)}
+.bar .sep{width:1px;height:1.833rem;background:var(--edge)}
+.badge{font-size:0.917rem;padding:0.167rem 0.583rem;border-radius:0.833rem;background:#2a2f37;color:var(--dim)}
+.badge.ok{background:#1f3b2a;color:var(--ok)}
+.led{width:0.667rem;height:0.667rem;border-radius:50%;background:#333;display:inline-block;transition:background .25s}
+.led.in.on{background:var(--cool);transition:none}
+.led.out.on{background:var(--acc);transition:none}
+#progName{width:12.5rem;font-family:var(--mono);color:var(--acc);background:#0f1215;letter-spacing:.04em}
+#progLoc{font-family:var(--mono);color:var(--cool);min-width:3.333rem}
+#warn{display:none;padding:0.5rem 1.167rem;background:#3a2418;color:#f5c39b;border-bottom:1px solid #6b3a20}
+#warn.show{display:block}
+
+/* editor */
+#editor{display:flex;flex-wrap:wrap;gap:0.667rem;padding:0.833rem 1rem;align-items:flex-start}
+.panel{background:var(--panel);border:1px solid var(--edge);border-radius:0.5rem;padding:0.5rem 0.667rem 0.667rem}
+.panel h3{margin:0 0 0.333rem;font-size:0.833rem;letter-spacing:.14em;color:var(--acc);text-transform:uppercase;font-weight:600}
+.row{display:flex;gap:0.167rem;align-items:flex-end;flex-wrap:nowrap}
+.col{display:flex;flex-direction:column;gap:0.333rem;align-items:stretch}
+.tag{width:1.333rem;color:var(--dim);font-weight:700;align-self:center;text-align:center}
+.sub{border-left:1px solid var(--edge);padding-left:0.5rem;margin-left:0.333rem}
+.grp{display:flex;flex-direction:column;gap:0.25rem;padding:0.333rem 0.5rem;border:1px solid var(--edge);border-radius:0.417rem;background:var(--panel2)}
+.grp .gt{font-size:0.833rem;color:var(--dim);letter-spacing:.08em;text-transform:uppercase}
+
+.knob{width:5rem;text-align:center;user-select:none;touch-action:none;padding-top:0.167rem}
+.knob svg{width:3.167rem;height:3.167rem;display:block;margin:0 auto;cursor:ns-resize}
+.knob .kv{font-family:var(--mono);font-size:0.917rem;color:#fff;height:1.167rem;white-space:nowrap}
+.knob .kv input{width:4.167rem;font-family:var(--mono);font-size:0.917rem;padding:0 0.167rem;text-align:center;background:#000;border-color:var(--acc)}
+.knob .kl{font-size:0.833rem;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.knob.flash svg .val{stroke:#fff}
+.sel{display:flex;flex-direction:column;gap:1px;padding:0.167rem 0.25rem}
+.sel .kl{font-size:0.833rem;color:var(--dim)}
+.sel select{font-size:0.917rem;background:#0f1215;color:var(--acc);border-color:#30363f}
+.tog{padding:0.167rem 0.25rem;display:flex;flex-direction:column;gap:1px;align-items:center}
+.tog button{font-size:0.833rem;padding:0.167rem 0.667rem;min-width:4rem}
+.tog button.on{background:var(--acc-dim);border-color:var(--acc);color:#fff}
+.tog .kl{font-size:0.833rem;color:var(--dim)}
+.env{width:12.5rem;height:4.333rem;margin:0.167rem 0.5rem;background:#0f1215;border:1px solid #30363f;border-radius:0.333rem}
+
+/* sequencer */
+.seq{display:flex;flex-direction:column;gap:0.417rem}
+.seqrow{display:flex;align-items:center;gap:0.667rem}
+.seqrow .slab{width:3.667rem;color:var(--dim);font-weight:600}
+.seqrow select{width:10rem}
+.cells{display:grid;grid-template-columns:repeat(16,1fr);gap:0.25rem;flex:1;min-width:40rem;height:9rem;cursor:crosshair;touch-action:none}
+.cell{position:relative;background:#0f1215;border:1px solid #2a3038;border-radius:0.25rem;overflow:hidden}
+.cell:nth-child(4n+1){border-color:#3c4552}
+.cell .fill{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(#f2a33a,#a8681c)}
+.cell span{position:absolute;top:1px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:0.833rem;color:#fff;text-shadow:0 0 0.25rem #000;pointer-events:none}
+.cell.rst{background:#2b1a1a}.cell.rst span{color:var(--bad)}
+.cell.off{background:#1a2229}.cell.off span{color:var(--cool)}
+.hint{color:var(--dim);font-size:0.833rem}
+
+#log{padding:0.5rem 1.167rem;color:var(--dim);font-family:var(--mono);font-size:0.917rem;border-top:1px solid var(--edge);min-height:2.167rem}
+#log b{color:var(--txt);font-weight:400}
+
+#modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:10}
+#modal[hidden]{display:none}
+#modal .box{background:var(--panel);border:1px solid var(--edge);border-radius:0.667rem;padding:1.5rem 1.667rem;max-width:35rem}
+#modal .box p{margin:0 0 1.167rem;font-size:1.083rem}
+#modal .btns{display:flex;justify-content:flex-end;gap:0.667rem}
+
+#views{display:flex;gap:0}
+#views button{border-radius:0;padding:0.333rem 1rem}
+#views button:first-child{border-radius:0.333rem 0 0 0.333rem}
+#views button:last-child{border-radius:0 0.333rem 0.333rem 0;border-left:none}
+#views button.on{background:var(--acc-dim);border-color:var(--acc);color:#fff}
+#seqview{padding:0.833rem 1rem}
+#seqview[hidden],#editor[hidden]{display:none}
+#seqview .panel{width:100%}
+.seqrow{align-items:stretch}
+.seqrow .slab{align-self:center}
+.seqrow .sel{align-self:center}
+.stepnums{display:grid;grid-template-columns:repeat(16,1fr);gap:0.25rem;flex:1;min-width:40rem;color:var(--dim);font-family:var(--mono);text-align:center;font-size:0.833rem}
+.cell span{font-size:0.917rem;top:0.25rem}
+#uiSize{width:auto}
+#libview{padding:0.833rem 1rem}
+#libview[hidden]{display:none}
+.libbar{display:flex;gap:0.5rem;align-items:center;margin-bottom:0.667rem;flex-wrap:wrap}
+.libgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:0.667rem}
+.libcol{background:var(--panel);border:1px solid var(--edge);border-radius:0.5rem;display:flex;flex-direction:column;min-width:0}
+.libhead{padding:0.4rem 0.667rem;color:var(--acc);font-size:0.833rem;letter-spacing:.14em;text-transform:uppercase;font-weight:600;border-bottom:1px solid var(--edge)}
+.liblist{height:calc(100vh - 18.5rem);min-height:20rem;overflow-y:auto}
+.librow{user-select:none;display:flex;gap:0.667rem;padding:0.2rem 0.667rem;cursor:pointer;font-family:var(--mono);white-space:nowrap}
+.librow:nth-child(odd){background:#171a1f}
+.librow:hover{background:#2a3038}
+.librow .loc{color:var(--dim)}
+.librow .nm{color:var(--cool)}
+.librow.unknown .nm::after{content:'—';color:#444}
+.librow.cur{background:var(--acc-dim)!important}.librow.cur .nm,.librow.cur .loc{color:#fff}
+button.big{padding:0.4rem 1rem}
+.seqtools{display:flex;gap:0.5rem;align-items:center;margin:0.25rem 0 0.5rem}
+.seqtools button.on{background:var(--acc-dim);border-color:var(--acc);color:#fff}
+.cell.after{opacity:.35}
+.cell.rst{background:#4a1f1f;border-color:var(--bad)}.cell.rst span{color:#ff8a80;font-weight:700;top:40%}
+.cell.off{background:#173040;border-color:var(--cool)}.cell.off span{color:var(--cool);font-weight:700;top:40%}
+</style>
+</head>
+<body>
+
+<header id="top">
+  <div class="brand">EVOLVER<span>web editor</span></div>
+  <nav id="tabs"></nav>
+  <label>UI size <select id="uiSize"><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="1.75">175%</option><option value="2">200%</option></select></label>
+  <div id="midiStatus">MIDI: starting…</div>
+</header>
+
+<section class="bar" id="instbar">
+  <label>Name <input type="text" id="instLabel" size="12"></label>
+  <label>MIDI In <select id="inSel"></select></label>
+  <label>MIDI Out <select id="outSel"></select></label>
+  <label>Channel <select id="chSel"></select></label>
+  <button id="btnIdent" title="Send a Universal Inquiry to check this port pair">Identify</button>
+  <span id="ident" class="badge">not checked</span>
+  <span title="MIDI in" class="led in" id="ledIn"></span><span title="MIDI out" class="led out" id="ledOut"></span>
+  <span style="flex:1"></span>
+  <button id="btnRemove" class="warn" title="Remove this Evolver from the editor">Remove</button>
+</section>
+
+<section class="bar" id="progbar">
+  <div id="views"><button data-v="prog" class="on">Program</button><button data-v="seq">Sequencer</button><button data-v="lib">Library</button></div>
+  <span class="sep"></span>
+  <span id="progLoc">—</span>
+  <input type="text" id="progName" maxlength="16" placeholder="program name" spellcheck="false">
+  <label>Bank <select id="bankSel"></select></label>
+  <label>Prog <select id="progSel"></select></label>
+  <button id="btnGet" title="Program change to Bank/Prog, then receive it">Get</button>
+  <span class="sep"></span>
+  <button id="btnReceive" title="Receive the edit buffer from the Evolver">Receive</button>
+  <button id="btnSend" title="Send the editor content to the Evolver edit buffer (not saved)">Send</button>
+  <button id="btnWrite" class="warn" title="Store into Bank/Prog on the Evolver">Write…</button>
+  <label title="Send each edit to the Evolver as you turn a knob"><input type="checkbox" id="live" checked> Live</label>
+  <button id="btnRun" title="Start / stop the Evolver sequencer">▶■ Seq</button>
+  <button id="btnNote" title="Hold to play C3 on the selected channel">♪ Test</button>
+  <span class="sep"></span>
+  <button id="btnInit" title="Start from a basic patch: 1 saw oscillator, filter open, plain VCA">Init</button>
+  <button id="btnLoad">Load .syx</button>
+  <button id="btnSave">Save .syx</button>
+  <select id="copySel" title="Copy this program to another Evolver"></select>
+  <input type="file" id="file" accept=".syx,.mid,application/octet-stream" hidden>
+</section>
+<div id="warn"></div>
+
+<main id="editor"></main>
+<main id="seqview" hidden></main>
+<main id="libview" hidden></main>
+<footer id="log">Ready.</footer>
+
+<div id="modal" hidden><div class="box"><p id="modalText"></p><div class="btns"><button id="modalNo">Cancel</button><button id="modalYes" class="warn">Confirm</button></div></div></div>
+
+<script>
+'use strict';
+/* ============================================================
+   Evolver (desktop mono) — SysEx definitions
+   Header F0 01 20 01 <type> … F7
+   ============================================================ */
+const HDR = [0xF0, 0x01, 0x20, 0x01];
+const T = { PARAM:0x01, PROG_DUMP:0x02, EDIT_DUMP:0x03, REQ_PROG:0x05, REQ_EDIT:0x06, SEQ_PARAM:0x08,
+            REQ_MAIN:0x0E, MAIN_DUMP:0x0F, REQ_NAME:0x10, NAME_DUMP:0x11, RESET:0x04, START_STOP:0x12 };
+const DATA_LEN = 192;           // 128 program params + 64 sequencer steps
+const PACKED_LEN = 220;
+
+// DSI packing: 7 bytes -> 8 (leading byte holds the 7 MS bits, bit0 = first byte)
+function pack(data){
+  const out = [];
+  for (let i = 0; i < data.length; i += 7){
+    const chunk = data.slice(i, i + 7);
+    let ms = 0;
+    chunk.forEach((b, j) => { if (b & 0x80) ms |= 1 << j; });
+    out.push(ms, ...chunk.map(b => b & 0x7F));
+  }
+  return out;
+}
+function unpack(bytes){
+  const out = [];
+  for (let i = 0; i < bytes.length; i += 8){
+    const ms = bytes[i];
+    for (let j = 1; j < 8 && i + j < bytes.length; j++)
+      out.push(bytes[i + j] | (((ms >> (j - 1)) & 1) << 7));
+  }
+  return out;
+}
+const nib = v => [v & 0x0F, (v >> 4) & 0x0F];
+
+/* ------------------------- value lists ------------------------- */
+const DEST = ['None','Osc1 Freq','Osc2 Freq','Osc3 Freq','Osc4 Freq','Osc All Freq','Osc1 Level','Osc2 Level','Osc3 Level','Osc4 Level','Osc All Level',
+ 'Noise Level','Ext In Level','Osc1 PW','Osc2 PW','Osc All PW','FM 4>3','FM 3>4','RM 4>3','RM 3>4','Filter Freq','Filter Split','Resonance','HP Freq',
+ 'VCA Amount','Pan','FB Freq','FB Amount','Dly Time 1','Dly Time 2','Dly Time 3','Dly Time All','Dly Amt 1','Dly Amt 2','Dly Amt 3','Dly Amt All',
+ 'Dly FB 1','Dly FB 2','LFO1 Freq','LFO2 Freq','LFO3 Freq','LFO4 Freq','LFO All Freq','LFO1 Amt','LFO2 Amt','LFO3 Amt','LFO4 Amt','LFO All Amt',
+ 'Env1 Amt','Env2 Amt','Env3 Amt','Env All Amt','Env1 Attack','Env2 Attack','Env3 Attack','Env All Attack','Env1 Decay','Env2 Decay','Env3 Decay',
+ 'Env All Decay','Env1 Release','Env2 Release','Env3 Release','Env All Release','Filter L Freq','Filter R Freq','Filter L Res','Filter R Res','Distortion'];
+const SEQ_DEST = DEST.concat(['Clock Mult','MIDI Note Out','MIDI Vel Out','MIDI ModW Out','MIDI Press Out','MIDI Breath Out','MIDI Foot Out']);
+const SRC = ['None','Seq 1','Seq 2','Seq 3','Seq 4','LFO 1','LFO 2','LFO 3','LFO 4','Filter Env','Amp Env','Env 3','Ext Peak','Ext Env Follow',
+ 'Pitch Bend','Mod Wheel','Pressure','Breath','Foot','Velocity','Note Number','Expression','Noise','Osc 3','Osc 4'];
+const LFO_SHAPE = ['Triangle','Rev Saw','Saw','Pulse','Random'];
+const TRIG = ['SEQ/MIDI','SEQUENCER','MIDI','MIDI RST','MIDI GATE','MIDI G/R','EXT IN','EXT IN RST','EXT IN GATE','EXT IN G/R',
+ 'MIDI SEQ 1','MIDI SEQ 1R','EXT IN SQ 1','MIDI SQ SP'];
+const TRIG_DESC = [
+ 'Envelopes triggered by the running sequencer or by MIDI notes',
+ 'Envelopes triggered by the sequencer only (MIDI notes ignored for triggering)',
+ 'Envelopes triggered by MIDI notes only; the sequencer runs but does not trigger',
+ 'MIDI notes trigger the envelopes and reset the sequencer to step 1',
+ 'MIDI gate: the sequencer runs only while a MIDI note is held',
+ 'MIDI gate + reset: the sequencer runs while a note is held and restarts on each new note',
+ 'The external audio input triggers the envelopes',
+ 'The external audio input triggers the envelopes and resets the sequencer',
+ 'External input gate: the sequencer runs while the input signal is present',
+ 'External input gate + reset',
+ 'A MIDI note plays the sequence once',
+ 'A MIDI note plays the sequence once, restarting on each new note',
+ 'The external input plays the sequence once',
+ 'A key press plays the sequence once'];
+const KEY_MODE = ['Low Note','Low Note Retrig','High Note','High Note Retrig','Last Note','Last Note Retrig'];
+const IN_MODE = ['Stereo','Left','Right','Split'];
+const PAN = ['Stereo 1','Stereo 2','Stereo 3','Mono','Reverse 1','Reverse 2','Reverse 3'];
+const CLK_DIV = ['1/2','1/4','1/8','1/8 half swing','1/8 full swing','1/8 triplet','1/16','1/16 half swing','1/16 full swing','1/16 triplet','1/32','1/32 triplet','1/64 triplet'];
+const SHAPE_MOD = ['Off','Seq 1','Seq 2','Seq 3','Seq 4'];
+const LFO_SYNC = ['s32','s16','s8','s4','s2','s1','st2','st4','st8','st16'];
+const DLY_SYNC = ['s32','s16','s8','s4','s2','s1','st2','st4','st8','st16','s6','s3','s15','s05','st3','st6'];
+const NOTE = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+
+/* ------------------------- formatters ------------------------- */
+const sgn = n => (n > 0 ? '+' : '') + n;
+const FMT = {
+  raw:   v => '' + v,
+  note:  v => NOTE[v % 12] + Math.floor(v / 12),
+  fine:  v => sgn(v - 50),
+  bip:   v => sgn(v - 99),
+  shape: v => v === 0 ? 'Saw' : v === 1 ? 'Tri' : v === 2 ? 'Saw/Tri' : 'P' + String(v - 3).padStart(2, '0'),
+  wave:  v => (v < 96 ? 'R-' : 'U-') + String(v + 1).padStart(2, '0'),
+  glide: v => v <= 100 ? '' + v : v < 200 ? 'F' + (v - 100) : 'OFF',
+  lfoF:  v => v <= 150 ? '' + v : LFO_SYNC[v - 151],
+  lfoA:  v => v <= 100 ? '' + v : 'K' + (v - 100),
+  dly:   v => v <= 150 ? '' + v : DLY_SYNC[v - 151],
+  io:    v => v < 100 ? v + ' OUT' : (v - 100) + ' IN',
+  xpose: v => v === 0 ? 'OFF' : sgn(v - 37),
+  bpm:   v => v + '',
+  pb:    v => '±' + v,
+};
+const CENTER = { fine:50, bip:99, xpose:37 };
+
+/* ------------------------- parameter table (0–127) ------------------------- */
+const P = [];
+function def(id, name, max, fmt = 'raw', min = 0){
+  const p = { id, name, min, max };
+  if (Array.isArray(fmt)) p.list = fmt; else p.fmt = fmt;
+  if (p.fmt && CENTER[p.fmt] !== undefined) p.center = CENTER[p.fmt];
+  P[id] = p;
+}
+for (let o = 0; o < 4; o++){
+  const b = o * 4, n = o + 1;
+  def(b, `Osc ${n} Freq`, 120, 'note');
+  def(b + 1, `Osc ${n} Fine`, 100, 'fine');
+  def(b + 2, `Osc ${n} Shape`, o < 2 ? 102 : 127, o < 2 ? 'shape' : 'wave');
+  def(b + 3, `Osc ${n} Level`, 100);
+}
+def(16,'LPF Frequency',164); def(17,'LPF Env Amount',198,'bip'); def(18,'LPF Attack',110); def(19,'LPF Decay',110);
+def(20,'LPF Sustain',100); def(21,'LPF Release',110); def(22,'Resonance',100); def(23,'LPF Key Amount',100);
+def(24,'VCA Level',100); def(25,'VCA Env Amount',100); def(26,'VCA Attack',110); def(27,'VCA Decay',110);
+def(28,'VCA Sustain',100); def(29,'VCA Release',110); def(30,'Output Pan',6,PAN); def(31,'Program Volume',100);
+def(32,'Feedback Freq',48,'note'); def(33,'Feedback Level',100); def(34,'Grunge',1,['Off','On']);
+def(35,'Delay 1 Time',166,'dly'); def(36,'Delay 1 Amount',100); def(37,'Delay FB to Delay',100); def(38,'Delay FB to Filter',100);
+def(39,'Output Hack',14);
+[[40,1],[44,2],[104,3],[108,4]].forEach(([b,n]) => {
+  def(b,`LFO ${n} Freq`,160,'lfoF'); def(b+1,`LFO ${n} Shape`,4,LFO_SHAPE); def(b+2,`LFO ${n} Amount`,200,'lfoA'); def(b+3,`LFO ${n} Dest`,68,DEST);
+});
+def(48,'Env 3 Amount',198,'bip'); def(49,'Env 3 Dest',68,DEST); def(50,'Env 3 Attack',110); def(51,'Env 3 Decay',110);
+def(52,'Env 3 Sustain',100); def(53,'Env 3 Release',110); def(54,'Trigger Select',13,TRIG); P[54].desc = TRIG_DESC; def(55,'Key Off / Transpose',73,'xpose');
+for (let s = 0; s < 4; s++) def(56 + s, `Seq ${s+1} Dest`, 75, SEQ_DEST);
+def(60,'Noise Level',100); def(61,'Ext In Volume',100); def(62,'Ext In Mode',3,IN_MODE); def(63,'Input Hack',14);
+def(64,'Osc 1 Glide',200,'glide'); def(65,'Osc Sync',1,['Off','On']); def(66,'Program Tempo',250,'bpm',30); def(67,'Clock Divide',12,CLK_DIV);
+def(68,'Osc 2 Glide',200,'glide'); def(69,'Osc Slop',5); def(70,'Pitch Bend Range',12,'pb'); def(71,'Key Mode',5,KEY_MODE);
+def(72,'Osc 3 Glide',200,'glide'); def(73,'FM Osc 4>3',100); def(74,'Shape Mod Osc 3',4,SHAPE_MOD); def(75,'Ring Mod 4>3',100);
+def(76,'Osc 4 Glide',200,'glide'); def(77,'FM Osc 3>4',100); def(78,'Shape Mod Osc 4',4,SHAPE_MOD); def(79,'Ring Mod 3>4',100);
+def(80,'Filter Poles',1,['2-Pole','4-Pole']); def(81,'LPF Velocity',100); def(82,'LPF Audio Mod',100); def(83,'LPF L/R Split',100);
+def(84,'Highpass',199,'io');
+[[85,1],[90,2],[93,3],[96,4]].forEach(([b,n]) => { def(b,`Mod ${n} Source`,24,SRC); def(b+1,`Mod ${n} Amount`,198,'bip'); def(b+2,`Mod ${n} Dest`,68,DEST); });
+def(88,'Envelope Shape',1,['Exp','Lin']); def(89,'VCA Velocity',100);
+def(99,'Delay 2 Time',166,'dly'); def(100,'Delay 2 Amount',100); def(101,'Delay 3 Time',166,'dly'); def(102,'Delay 3 Amount',100);
+def(103,'Distortion',199,'io'); def(112,'Env 3 Delay',100); def(113,'Env 3 Velocity',100);
+def(114,'Ext Peak Amount',198,'bip'); def(115,'Ext Peak Dest',68,DEST); def(116,'Env Follow Amount',198,'bip'); def(117,'Env Follow Dest',68,DEST);
+[[118,'Velocity'],[120,'Mod Wheel'],[122,'Pressure'],[124,'Breath'],[126,'Foot']].forEach(([b,n]) => { def(b,`${n} Amount`,198,'bip'); def(b+1,`${n} Dest`,68,DEST); });
+
+const fmtVal = (p, v) => p.list ? (p.list[v] ?? '?' + v) : FMT[p.fmt](v);
+
+// Basic patch: one saw oscillator, filter wide open, plain VCA envelope, everything else off.
+function initData(){
+  const d = new Array(DATA_LEN).fill(0);
+  P.forEach(p => { d[p.id] = p.center ?? p.min; });     // fine = 0, bipolar amounts = 0, lists = first entry
+  Object.assign(d, {
+    0: 0, 2: 0, 3: 100,                   // Osc 1: C0, saw, full level (follows the keyboard)
+    4: 0, 8: 0, 12: 0,                    // Osc 2–4 silent (level 0)
+    16: 164, 22: 0, 80: 1,                // LPF fully open, no resonance, 4-pole
+    18: 0, 19: 0, 20: 0, 21: 0,           // filter envelope unused (amount 0)
+    24: 0, 25: 100, 26: 0, 27: 0, 28: 100, 29: 10,   // VCA: gate-like A0 D0 S100 R10
+    30: 3,                                // Output pan MONO (osc 1 is on the left side in stereo modes)
+    31: 100,                              // program volume
+    40: 60, 44: 60, 104: 60, 108: 60,     // LFO speeds (amount 0 = no effect)
+    66: 120, 67: 6,                       // 120 BPM, 1/16
+    70: 2, 71: 4,                         // bend ±2, last-note priority
+    54: 0, 55: 37,                        // trigger SEQ/MIDI, no transpose
+  });
+  return d;
+}
+
+/* ============================================================
+   State (several Evolvers)
+   ============================================================ */
+const STORE_KEY = 'evolverWebEditor.v1';
+let state = { active: 0, instances: [] };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const newInstance = n => ({ uid: uid(), label: 'Evolver ' + n, inId:'', inName:'', outId:'', outName:'', ch: 1,
+                            data: initData(), name: '', bank: 0, prog: 0, names: [[], [], [], []] });
+function load(){
+  try {
+    const s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+    if (s && Array.isArray(s.instances) && s.instances.length){
+      s.instances.forEach(i => { if (!Array.isArray(i.data) || i.data.length !== DATA_LEN) i.data = initData(); if (!Array.isArray(i.names) || i.names.length !== 4) i.names = [[], [], [], []]; });
+      state = s;
+    }
+  } catch (e) { /* storage unavailable */ }
+  if (!state.instances.length) state.instances = [newInstance(1), newInstance(2)];
+  if (state.active >= state.instances.length) state.active = 0;
+}
+let saveTimer = null;
+function save(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      const clean = state.instances.map(i => Object.fromEntries(Object.entries(i).filter(([k]) => !k.startsWith('_'))));
+      localStorage.setItem(STORE_KEY, JSON.stringify({ active: state.active, view: state.view, ui: state.ui, instances: clean }));
+    } catch (e) {}
+  }, 400);
+}
+const cur = () => state.instances[state.active];
+
+/* ============================================================
+   Web MIDI
+   ============================================================ */
+let midi = null;
+function resolvePort(map, id, name){
+  if (!midi) return null;
+  if (id && map.has(id)) return map.get(id);
+  if (name) for (const p of map.values()) if (p.name === name) return p;
+  return null;
+}
+const outFor = inst => midi && resolvePort(midi.outputs, inst.outId, inst.outName);
+const inFor  = inst => midi && resolvePort(midi.inputs, inst.inId, inst.inName);
+
+async function initMIDI(){
+  const st = $('#midiStatus');
+  if (!navigator.requestMIDIAccess){ st.textContent = 'Web MIDI not available — open this file in Chrome or Edge.'; st.className = 'err'; return; }
+  try { midi = await navigator.requestMIDIAccess({ sysex: true }); }
+  catch (e){
+    st.textContent = location.protocol === 'file:'
+      ? 'SysEx is blocked for local files — open the page via http://localhost (run start-editor.bat).'
+      : 'MIDI/SysEx access refused — allow it in the site settings (padlock icon) and reload.';
+    st.className = 'err'; return;
+  }
+  midi.onstatechange = () => { bindInputs(); renderInstBar(); renderTabs(); checkConflicts(); };
+  bindInputs(); renderInstBar(); renderTabs(); checkConflicts();
+  st.textContent = `MIDI: ${midi.inputs.size} in / ${midi.outputs.size} out`; st.className = '';
+  state.instances.forEach(i => { if (outFor(i)) identify(i); });
+}
+function bindInputs(){ for (const inp of midi.inputs.values()) inp.onmidimessage = e => onMessage(inp, e.data); }
+
+function send(inst, bytes){
+  const o = outFor(inst);
+  if (!o) return false;
+  try { o.send(bytes); } catch (e) { log(`${inst.label}: send failed (${e.message})`); return false; }
+  if (inst === cur()) blink('#ledOut');
+  return true;
+}
+function needOut(inst){
+  if (outFor(inst)) return true;
+  log(`${inst.label}: choose a MIDI Out port first.`);
+  return false;
+}
+function blink(sel){ const l = $(sel); l.classList.add('on'); clearTimeout(l._t); l._t = setTimeout(() => l.classList.remove('on'), 60); }
+
+// throttled live parameter sending, per instance
+function queueSend(inst, type, idx, v){
+  (inst._q ||= new Map()).set(type * 256 + idx, [type, idx, v]);
+  if (inst._t) return;
+  inst._t = setTimeout(() => {
+    inst._t = null;
+    for (const [t, i, val] of inst._q.values()) send(inst, [...HDR, t, i, ...nib(val), 0xF7]);
+    inst._q.clear();
+  }, 12);
+}
+
+/* ------------------------- requests ------------------------- */
+function identify(inst){ inst.ident = null; if (inst === cur()) renderIdent(); send(inst, [0xF0, 0x7E, 0x7F, 0x06, 0x01, 0xF7]); }
+function requestEdit(inst){
+  if (!needOut(inst)) return;
+  inst._wantName = true;
+  send(inst, [...HDR, T.REQ_EDIT, 0xF7]);
+  send(inst, [...HDR, T.REQ_MAIN, 0xF7]);       // -> current bank/program -> name
+}
+function getProgram(inst, bank, prog){
+  if (!needOut(inst)) return;
+  const ch = inst.ch - 1;
+  send(inst, [0xB0 | ch, 32, bank]);
+  send(inst, [0xC0 | ch, prog]);
+  inst.bank = bank; inst.prog = prog; inst.name = '';
+  renderProgBar();
+  setTimeout(() => {
+    send(inst, [...HDR, T.REQ_EDIT, 0xF7]);
+    send(inst, [...HDR, T.REQ_NAME, bank, prog, 0xF7]);
+  }, 150);
+}
+const editDump = inst => [...HDR, T.EDIT_DUMP, ...pack(inst.data), 0xF7];
+function sendEdit(inst){ if (needOut(inst) && send(inst, editDump(inst))) log(`${inst.label}: edit buffer sent.`); }
+const nameBytes = s => Array.from((s || '').padEnd(16, ' ').slice(0, 16)).map(c => c.charCodeAt(0) & 0x7F);
+function writeProgram(inst, bank, prog){
+  if (!needOut(inst)) return;
+  send(inst, [...HDR, T.PROG_DUMP, bank, prog, ...pack(inst.data), 0xF7]);
+  setTimeout(() => send(inst, [...HDR, T.NAME_DUMP, bank, prog, ...nameBytes(inst.name), 0xF7]), 80);
+  inst.bank = bank; inst.prog = prog; inst.names[bank][prog] = inst.name; renderProgBar(); save();
+  if (inst === cur()) { libSetName(bank, prog, inst.name); libMark(); }
+  log(`${inst.label}: written to ${locName(bank, prog)}.`);
+}
+
+/* ------------------------- incoming ------------------------- */
+function onMessage(inp, d){
+  const targets = state.instances.filter(i => inFor(i) === inp);
+  if (!targets.length) return;
+  if (targets.includes(cur())) blink('#ledIn');
+  for (const inst of targets) handle(inst, d);
+}
+function handle(inst, d){
+  if (d[0] !== 0xF0) return;
+  if (d[1] === 0x7E && d[3] === 0x06 && d[4] === 0x02){           // identity reply
+    if (d[5] === 0x01 && d[6] === 0x20){
+      inst.ident = Array.from(d.slice(7, d.length - 1));
+      if (inst === cur()) renderIdent();
+      renderTabs();
+      log(`${inst.label}: Evolver answered on this port pair.`);
+    }
+    return;
+  }
+  if (d[1] !== 0x01 || d[2] !== 0x20) return;
+  const body = d.slice(5, d.length - 1);
+  switch (d[4]){
+    case T.PARAM:     setParam(inst, body[0], body[1] | (body[2] << 4), false); break;
+    case T.SEQ_PARAM: setStep(inst, body[0], body[1] | (body[2] << 4), false); break;
+    case T.EDIT_DUMP: loadData(inst, unpack(body), 'edit buffer received'); break;
+    case T.PROG_DUMP: inst.bank = body[0]; inst.prog = body[1]; loadData(inst, unpack(body.slice(2)), `program ${locName(body[0], body[1])} received`); break;
+    case T.MAIN_DUMP: {
+      const v = i => body[2 * i] | (body[2 * i + 1] << 4);
+      inst.prog = v(0); inst.bank = v(1);
+      if (inst._wantName){ inst._wantName = false; send(inst, [...HDR, T.REQ_NAME, inst.bank, inst.prog, 0xF7]); }
+      if (inst === cur()) renderProgBar();
+      save(); break;
+    }
+    case T.NAME_DUMP: {
+      const [b, pr] = body, nm = String.fromCharCode(...body.slice(2, 18)).replace(/\0/g, '').trimEnd();
+      if (b > 3 || pr > 127) break;
+      inst.names[b][pr] = nm;
+      if (inst === cur()) libSetName(b, pr, nm);
+      if (b === inst.bank && pr === inst.prog){
+        inst.name = nm;
+        if (inst === cur()) renderProgBar();
+        renderTabs();
+      }
+      nameQueueAdvance(inst, b, pr);
+      save(); break;
+    }
+  }
+}
+function loadData(inst, arr, what){
+  if (arr.length < DATA_LEN){ log(`${inst.label}: short dump (${arr.length} bytes) ignored.`); return; }
+  inst.data = arr.slice(0, DATA_LEN);
+  if (inst === cur()) refreshAll();
+  save();
+  if (what) log(`${inst.label}: ${what}.`);
+}
+
+/* ============================================================
+   Editing model
+   ============================================================ */
+const updaters = new Map();           // param id -> [fn]
+const stepUpdaters = [];              // 0..63 -> fn
+const reg = (id, fn) => { if (!updaters.has(id)) updaters.set(id, []); updaters.get(id).push(fn); };
+const live = () => $('#live').checked;
+
+function setParam(inst, id, v, fromUI = true){
+  const p = P[id]; if (!p) return;
+  v = Math.max(p.min, Math.min(p.max, Math.round(v)));
+  if (inst.data[id] === v && fromUI) return;
+  inst.data[id] = v;
+  if (inst === cur()) (updaters.get(id) || []).forEach(f => f(v, !fromUI));
+  if (fromUI && live()) queueSend(inst, T.PARAM, id, v);
+  save();
+}
+function setStep(inst, step, v, fromUI = true){
+  if (step < 0 || step > 63) return;
+  const max = step < 16 ? 102 : 101;
+  v = Math.max(0, Math.min(max, Math.round(v)));
+  if (inst.data[128 + step] === v && fromUI) return;
+  inst.data[128 + step] = v;
+  if (inst === cur() && stepUpdaters[step]) stepUpdaters[step](v);
+  if (fromUI && live()) queueSend(inst, T.SEQ_PARAM, step, v);
+  save();
+}
+function refreshAll(){
+  const d = cur().data;
+  updaters.forEach((fns, id) => fns.forEach(f => f(d[id])));
+  stepUpdaters.forEach((f, i) => f(d[128 + i]));
+}
+
+/* ============================================================
+   UI widgets
+   ============================================================ */
+const $ = s => document.querySelector(s);
+function h(tag, attrs = {}, ...kids){
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)){
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (v != null) e.setAttribute(k, v);
+  }
+  for (const c of kids.flat()) if (c != null) e.append(c.nodeType ? c : document.createTextNode(c));
+  return e;
+}
+const SVGNS = 'http://www.w3.org/2000/svg';
+function s(tag, attrs = {}){ const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+
+const A0 = -135, A1 = 135;
+function pt(r, deg){ const a = deg * Math.PI / 180; return [20 + r * Math.sin(a), 20 - r * Math.cos(a)]; }
+function arc(r, d0, d1){
+  if (Math.abs(d1 - d0) < 0.01) return '';
+  const [x0, y0] = pt(r, d0), [x1, y1] = pt(r, d1);
+  return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${Math.abs(d1 - d0) > 180 ? 1 : 0} ${d1 > d0 ? 1 : 0} ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+}
+function parseInput(p, str){
+  str = str.trim();
+  if (p.fmt === 'xpose' && /^off$/i.test(str)) return 0;
+  if (p.fmt === 'note'){ const m = str.match(/^([A-Ga-g])(#?)(-?\d+)$/); if (m) return NOTE.indexOf(m[1].toUpperCase() + m[2]) + 12 * +m[3]; }
+  const n = parseFloat(str); if (isNaN(n)) return null;
+  return p.center !== undefined && p.fmt !== 'raw' ? n + p.center : n;
+}
+
+// Knob: drag vertically (Shift = fine), wheel, double-click to type a value
+function K(id, label){
+  const p = P[id];
+  const span = p.max - p.min;
+  const svg = s('svg', { viewBox: '0 0 40 40' });
+  svg.append(s('path', { d: arc(15, A0, A1), fill: 'none', stroke: '#2f3640', 'stroke-width': 4, 'stroke-linecap': 'round' }));
+  const val = s('path', { class: 'val', fill: 'none', stroke: 'var(--acc)', 'stroke-width': 4, 'stroke-linecap': 'round' });
+  const cap = s('circle', { cx: 20, cy: 20, r: 10, fill: '#2a3038', stroke: '#3a424d' });
+  const needle = s('line', { x1: 20, y1: 20, stroke: '#fff', 'stroke-width': 2, 'stroke-linecap': 'round' });
+  svg.append(val, cap, needle);
+  const kv = h('div', { class: 'kv' });
+  const wrap = h('div', { class: 'knob' }, svg, kv, h('div', { class: 'kl' }, label || p.name));
+  const tip = v => `${p.name}  •  param ${id}  •  raw ${v} (${p.min}–${p.max})\nDrag / wheel (Shift = fine), double-click to type`;
+  const draw = (v, remote) => {
+    const t = (v - p.min) / span, deg = A0 + t * (A1 - A0);
+    const c = p.center !== undefined ? A0 + (p.center - p.min) / span * (A1 - A0) : A0;
+    val.setAttribute('d', arc(15, Math.min(c, deg), Math.max(c, deg)));
+    const [x, y] = pt(9, deg); needle.setAttribute('x2', x); needle.setAttribute('y2', y);
+    if (!kv.querySelector('input')) kv.textContent = fmtVal(p, v);
+    wrap.title = tip(v);
+    if (remote){ wrap.classList.add('flash'); clearTimeout(wrap._f); wrap._f = setTimeout(() => wrap.classList.remove('flash'), 150); }
+  };
+  reg(id, draw);
+
+  let drag = null;
+  svg.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    svg.setPointerCapture(e.pointerId);
+    drag = { y: e.clientY, v: cur().data[id] };
+  });
+  svg.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const dy = drag.y - e.clientY; drag.y = e.clientY;
+    drag.v += dy * Math.max(span / 180, 0.08) * (e.shiftKey ? 0.15 : 1);
+    drag.v = Math.max(p.min, Math.min(p.max, drag.v));
+    setParam(cur(), id, drag.v);
+  });
+  const end = () => { drag = null; };
+  svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
+  svg.addEventListener('wheel', e => {
+    e.preventDefault();
+    const step = (e.shiftKey ? 1 : Math.max(1, Math.round(span / 100))) * (e.deltaY < 0 ? 1 : -1);
+    setParam(cur(), id, cur().data[id] + step);
+  }, { passive: false });
+  const edit = () => {
+    const inp = h('input', { type: 'text', value: fmtVal(p, cur().data[id]).replace(/ (OUT|IN)$/, '') });
+    kv.textContent = ''; kv.append(inp); inp.select();
+    const done = ok => {
+      if (ok){ const n = parseInput(p, inp.value); if (n != null) setParam(cur(), id, n); }
+      kv.textContent = fmtVal(p, cur().data[id]);
+    };
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') done(true); if (e.key === 'Escape') done(false); });
+    inp.addEventListener('blur', () => done(true));
+  };
+  svg.addEventListener('dblclick', edit); kv.addEventListener('dblclick', edit);
+  return wrap;
+}
+// Select for list parameters
+function S(id, label){
+  const p = P[id];
+  const sel = h('select', { title: `${p.name}  •  param ${id}`, onchange: e => setParam(cur(), id, +e.target.value) },
+    p.list.map((t, i) => h('option', { value: i, title: p.desc ? p.desc[i] : null }, t)));
+  reg(id, v => { sel.value = v; if (p.desc) sel.title = `${p.name}: ${p.desc[v] || ''}`; });
+  return h('div', { class: 'sel' }, sel, h('div', { class: 'kl' }, label || p.name));
+}
+// Two-state button
+function B(id, label){
+  const p = P[id];
+  const btn = h('button', { title: `${p.name}  •  param ${id}`, onclick: () => setParam(cur(), id, cur().data[id] ? 0 : 1) });
+  reg(id, v => { btn.textContent = p.list[v]; btn.classList.toggle('on', !!v); });
+  return h('div', { class: 'tog' }, btn, h('div', { class: 'kl' }, label || p.name));
+}
+// Envelope graph (attack, decay, sustain, release [, delay])
+function ENV(ids, delayId){
+  const svg = s('svg', { class: 'env', viewBox: '0 0 150 52' });
+  const poly = s('polygon', { fill: 'rgba(242,163,58,.22)', stroke: 'var(--acc)', 'stroke-width': 1.5, 'stroke-linejoin': 'round' });
+  svg.append(poly);
+  const draw = () => {
+    const d = cur().data, [a, dc, su, r] = ids.map(i => d[i]);
+    const top = 5, bot = 47, x0 = 4;
+    const dl = delayId != null ? d[delayId] / 100 * 18 : 0;
+    const xa = x0 + dl, xb = xa + a / 110 * 32, xc = xb + dc / 110 * 32, sy = bot - (bot - top) * su / 100, xd = xc + 18, xe = xd + r / 110 * 32;
+    poly.setAttribute('points', [[x0,bot],[xa,bot],[xb,top],[xc,sy],[xd,sy],[xe,bot]].map(q => q.map(n => n.toFixed(1)).join(',')).join(' '));
+  };
+  [...ids, delayId].filter(i => i != null).forEach(i => reg(i, draw));
+  return svg;
+}
+const row = (...k) => h('div', { class: 'row' }, ...k);
+const col = (...k) => h('div', { class: 'col' }, ...k);
+const grp = (title, ...k) => h('div', { class: 'grp' }, h('div', { class: 'gt' }, title), ...k);
+const panel = (title, ...k) => h('section', { class: 'panel' }, h('h3', {}, title), ...k);
+
+// 4 x 16 sequencer. Drag to draw, right-click a step to cycle rst / off.
+let seqTool = 'draw';
+function SEQ(){
+  const box = h('div', { class: 'seq' });
+  const tools = [['draw', '✎ Draw values'], ['rst', 'RST — end of sequence'], ['off', 'OFF — rest (Seq 1)'], ['zero', 'Clear step']];
+  const tb = h('div', { class: 'seqtools' }, h('span', { class: 'kl' }, 'Click tool:'),
+    tools.map(([k, t]) => h('button', { 'data-tool': k, class: k === seqTool ? 'on' : '', onclick: e => {
+      seqTool = k; tb.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.tool === k));
+    } }, t)));
+  box.append(tb);
+  box.append(h('div', { class: 'seqrow' }, h('div', { class: 'slab' }), h('div', { class: 'sel', style: 'visibility:hidden;height:0;padding:0;overflow:hidden' }, h('select', {}, h('option', {}, SEQ_DEST[69])), h('div', { class: 'kl' }, '.')),
+    h('div', { class: 'stepnums' }, Array.from({ length: 16 }, (_, i) => h('div', {}, i + 1)))));
+  for (let r = 0; r < 4; r++){
+    const cells = h('div', { class: 'cells' });
+    for (let c = 0; c < 16; c++){
+      const idx = r * 16 + c;
+      const fill = h('div', { class: 'fill' }), lab = h('span');
+      const cell = h('div', { class: 'cell', title: `Seq ${r + 1} step ${c + 1}` }, fill, lab);
+      cell.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        const v = cur().data[128 + idx];
+        setStep(cur(), idx, v <= 100 ? 101 : (v === 101 && r === 0) ? 102 : 50);
+      });
+      cells.append(cell);
+      stepUpdaters[idx] = v => {
+        cell.classList.toggle('rst', v === 101); cell.classList.toggle('off', v === 102);
+        fill.style.height = v <= 100 ? v + '%' : '0';
+        lab.textContent = v <= 100 ? v : v === 101 ? 'RST' : 'OFF';
+        dimRow();
+      };
+    }
+    // steps after the first RST of a row are not played: show them dimmed
+    const dimRow = () => {
+      const d = cur().data; let ended = false;
+      [...cells.children].forEach((el, c) => { el.classList.toggle('after', ended); if (d[128 + r * 16 + c] === 101) ended = true; });
+    };
+    let painting = false;
+    const colAt = e => { const rc = cells.getBoundingClientRect(); const c = Math.floor((e.clientX - rc.left) / rc.width * 16); return c >= 0 && c < 16 ? c : -1; };
+    const paint = e => {
+      const c = colAt(e); if (c < 0) return;
+      const rc = cells.getBoundingClientRect();
+      const v = Math.round((1 - (e.clientY - rc.top) / rc.height) * 100);
+      setStep(cur(), r * 16 + c, Math.max(0, Math.min(100, v)));
+    };
+    const applyTool = (e, tool) => {
+      const c = colAt(e); if (c < 0) return;
+      const idx = r * 16 + c, v = cur().data[128 + idx];
+      if (tool === 'off' && r !== 0){ log('OFF (rest) only exists on Seq 1 — the other rows follow its rests.'); return; }
+      const target = tool === 'rst' ? 101 : tool === 'off' ? 102 : 0;
+      setStep(cur(), idx, v === target && tool !== 'zero' ? 0 : target);   // clicking again toggles back
+    };
+    cells.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      if (seqTool !== 'draw'){ applyTool(e, seqTool); return; }
+      painting = true; cells.setPointerCapture(e.pointerId); paint(e);
+    });
+    cells.addEventListener('pointermove', e => { if (painting) paint(e); });
+    cells.addEventListener('pointerup', () => painting = false);
+    cells.addEventListener('pointercancel', () => painting = false);
+    box.append(h('div', { class: 'seqrow' }, h('div', { class: 'slab' }, 'Seq ' + (r + 1)), S(56 + r, 'Destination'), cells));
+  }
+  box.append(h('div', { class: 'hint' }, 'Draw: drag across the steps. RST / OFF / Clear: click a step (click again to undo). Shortcut: right-click a step cycles value → RST → OFF. Steps after an RST are greyed out (not played).'));
+  return box;
+}
+
+
+/* ============================================================
+   Sequencer transport
+   ============================================================ */
+function startStop(inst){ if (needOut(inst)) send(inst, [...HDR, T.START_STOP, 0xF7]); }
+function seqReset(inst){ if (needOut(inst)) send(inst, [...HDR, T.RESET, 0xF7]); }
+
+/* ============================================================
+   Library: names of the 4 x 128 programs
+   ============================================================ */
+const libRows = [[], [], [], []];
+let libFilter = '';
+function buildLibrary(){
+  const v = $('#libview');
+  const prog = h('span', { id: 'libProgress', class: 'hint' });
+  const filter = h('input', { type: 'text', placeholder: 'filter names…', id: 'libFilter',
+    oninput: e => { libFilter = e.target.value.toLowerCase(); applyLibFilter(); } });
+  v.append(h('div', { class: 'libbar' },
+    h('button', { onclick: () => readNames(cur(), [0, 1, 2, 3]) }, 'Read all names'),
+    ['A', 'B', 'C', 'D'].map((b, i) => h('button', { onclick: () => readNames(cur(), [i]) }, 'Bank ' + b)),
+    h('button', { class: 'warn', onclick: () => stopNames(cur()) }, 'Stop'),
+    prog, h('span', { style: 'flex:1' }), filter,
+    h('span', { class: 'hint' }, 'Click = select · double-click = load into the editor')));
+  const grid = h('div', { class: 'libgrid' });
+  for (let b = 0; b < 4; b++){
+    const list = h('div', { class: 'liblist' });
+    for (let p = 0; p < 128; p++){
+      const nm = h('span', { class: 'nm' });
+      const row = h('div', { class: 'librow', onclick: () => { cur().bank = b; cur().prog = p; renderProgBar(); libMark(); save(); },
+        ondblclick: () => { getProgram(cur(), b, p); libMark(); } }, h('span', { class: 'loc' }, locName(b, p)), nm);
+      row._nm = nm; libRows[b][p] = row; list.append(row);
+    }
+    grid.append(h('div', { class: 'libcol' }, h('div', { class: 'libhead' }, 'Bank ' + BANKS[b]), list));
+  }
+  v.append(grid);
+}
+function libSetName(b, p, nm){
+  const r = libRows[b][p]; if (!r) return;
+  r._nm.textContent = nm || ''; r.classList.toggle('unknown', nm == null);
+  if (libFilter) r.hidden = !(nm || '').toLowerCase().includes(libFilter) && !locName(b, p).toLowerCase().includes(libFilter);
+}
+function libMark(){
+  const inst = cur();
+  libRows.forEach((col, b) => col.forEach((r, p) => r.classList.toggle('cur', b === inst.bank && p === inst.prog)));
+}
+function applyLibFilter(){ const inst = cur(); for (let b = 0; b < 4; b++) for (let p = 0; p < 128; p++) libSetName(b, p, inst.names[b][p]); }
+function refreshLibrary(){
+  if (!libRows[0].length) return;
+  applyLibFilter(); libMark(); libProgress(cur());
+}
+function libProgress(inst){
+  if (inst !== cur() || !$('#libProgress')) return;
+  const q = inst._nq;
+  $('#libProgress').textContent = q ? `reading ${q.done}/${q.total}…` :
+    `${inst.names.reduce((n, b) => n + b.filter(x => x != null).length, 0)}/512 names known`;
+}
+// one request at a time, next one on reply (or after a timeout)
+function readNames(inst, banks){
+  if (!needOut(inst)) return;
+  const list = []; banks.forEach(b => { for (let p = 0; p < 128; p++) list.push([b, p]); });
+  inst._nq = { list, done: 0, total: list.length, cur: null, timer: null, misses: 0 };
+  nameQueueNext(inst);
+}
+function nameQueueNext(inst){
+  const q = inst._nq; if (!q) return;
+  clearTimeout(q.timer);
+  if (!q.list.length){
+    inst._nq = null; libProgress(inst);
+    log(`${inst.label}: names read${q.misses ? ` (${q.misses} without answer)` : ''}.`);
+    return;
+  }
+  q.cur = q.list.shift();
+  send(inst, [...HDR, T.REQ_NAME, q.cur[0], q.cur[1], 0xF7]);
+  q.timer = setTimeout(() => { q.misses++; q.done++; nameQueueNext(inst); }, 400);
+  libProgress(inst);
+}
+function nameQueueAdvance(inst, b, p){
+  const q = inst._nq;
+  if (!q || !q.cur || q.cur[0] !== b || q.cur[1] !== p) return;
+  q.done++; clearTimeout(q.timer);
+  setTimeout(() => nameQueueNext(inst), 5);
+}
+function stopNames(inst){ if (inst._nq){ clearTimeout(inst._nq.timer); inst._nq = null; libProgress(inst); log(`${inst.label}: reading stopped.`); } }
+
+/* ============================================================
+   Layout
+   ============================================================ */
+function buildEditor(){
+  const ed = $('#editor');
+  const osc = n => {
+    const b = (n - 1) * 4, g = [64, 68, 72, 76][n - 1];
+    return row(h('div', { class: 'tag' }, n), K(b, 'Frequency'), K(b + 1, 'Fine'), K(b + 2, n < 3 ? 'Shape/PW' : 'Wave'), K(b + 3, 'Level'), K(g, 'Glide'));
+  };
+  ed.append(
+    panel('Oscillators',
+      row(B(65, 'Sync'), K(69, 'Osc Slop'), K(70, 'Bend Range')),
+      osc(1), osc(2), osc(3), osc(4)),
+    col(
+      panel('Osc 3 & 4 Mods',
+        row(K(73, 'FM 4>3'), K(75, 'RM 4>3'), S(74, 'Shape Mod 3')),
+        row(K(77, 'FM 3>4'), K(79, 'RM 3>4'), S(78, 'Shape Mod 4'))),
+      panel('Noise', row(K(60, 'Level')))),
+    panel('External Input',
+      row(K(61, 'Input Vol'), S(62, 'Mode'), K(63, 'Input Hack')),
+      row(K(114, 'Peak Amt'), S(115, 'Peak Dest')),
+      row(K(116, 'EnvFol Amt'), S(117, 'EnvFol Dest'))),
+    panel('Envelope 3',
+      row(S(49, 'Destination'), K(48, 'Amount'), K(113, 'Velocity'), K(112, 'Delay')),
+      row(ENV([50, 51, 52, 53], 112)),
+      row(K(50, 'Attack'), K(51, 'Decay'), K(52, 'Sustain'), K(53, 'Release'))),
+    panel('Low Pass Filter',
+      row(K(16, 'Frequency'), K(22, 'Resonance'), K(17, 'Env Amount'), K(81, 'Velocity'), K(23, 'Key Amount'), K(82, 'Audio Mod')),
+      row(B(80, 'Poles'), ENV([18, 19, 20, 21]), K(83, 'L/R Split')),
+      row(K(18, 'Attack'), K(19, 'Decay'), K(20, 'Sustain'), K(21, 'Release'))),
+    panel('Amp',
+      row(K(24, 'VCA Level'), K(25, 'Env Amount'), K(89, 'Velocity'), S(30, 'Output Pan')),
+      row(ENV([26, 27, 28, 29]), B(88, 'Env Curve')),
+      row(K(26, 'Attack'), K(27, 'Decay'), K(28, 'Sustain'), K(29, 'Release'))),
+    panel('HP · Feedback · Dist',
+      row(K(84, 'Highpass'), K(103, 'Distortion')),
+      row(K(32, 'FB Freq'), K(33, 'FB Level')),
+      row(B(34, 'Grunge'))),
+    panel('Delay',
+      row(K(35, '1 Time'), K(99, '2 Time'), K(101, '3 Time'), K(37, 'Feedback 1')),
+      row(K(36, '1 Amount'), K(100, '2 Amount'), K(102, '3 Amount'), K(38, 'Feedback 2'))),
+    panel('Output', row(K(31, 'Prg Volume')), row(K(39, 'Out Hack'))),
+    panel('LFOs', row(...[[40, 1], [44, 2], [104, 3], [108, 4]].map(([b, n]) =>
+      grp('LFO ' + n, row(K(b, 'Frequency'), K(b + 2, 'Amount')), S(b + 1, 'Shape'), S(b + 3, 'Destination'))))),
+    panel('Modulators', ...[[85, 1], [90, 2], [93, 3], [96, 4]].map(([b, n]) =>
+      row(h('div', { class: 'tag' }, n), S(b, 'Source'), K(b + 1, 'Amount'), S(b + 2, 'Destination')))),
+    panel('Controls', ...[[120, 'Mod Wheel'], [122, 'Pressure'], [124, 'Breath'], [118, 'Velocity'], [126, 'Foot']].map(([b, n]) =>
+      row(S(b + 1, n + ' Dest'), K(b, 'Amount')))),
+    panel('Tempo · Keys',
+      row(K(66, 'Tempo'), S(67, 'Clock Divide'), S(54, 'Trigger')),
+      row(S(71, 'Key Mode'), K(55, 'Key Off/Xpose')))
+  );
+  $('#seqview').append(panel('Sequencer 4 × 16',
+      row(K(66, 'Tempo'), S(67, 'Clock Divide'), S(54, 'Trigger'), S(71, 'Key Mode'), K(55, 'Key Off/Xpose')),
+      row(h('button', { class: 'big', onclick: () => startStop(cur()) }, '▶■ Start / Stop'), h('button', { class: 'big', onclick: () => seqReset(cur()) }, '⟲ Reset')),
+      SEQ()));
+}
+
+/* ============================================================
+   Bars, tabs, dialogs
+   ============================================================ */
+const BANKS = ['A', 'B', 'C', 'D'];
+const locName = (b, p) => BANKS[b] + String(p + 1).padStart(3, '0');
+function log(msg){ $('#log').innerHTML = `<b>${new Date().toLocaleTimeString()}</b>  ${msg.replace(/</g, '&lt;')}`; }
+
+function renderTabs(){
+  const t = $('#tabs'); t.textContent = '';
+  state.instances.forEach((inst, i) => {
+    t.append(h('button', { class: i === state.active ? 'on' : '', title: inst.name || '', onclick: () => activate(i) },
+      h('span', { class: 'dot' + (inst.ident ? ' ok' : '') }), inst.label));
+  });
+  t.append(h('button', { title: 'Add an Evolver', onclick: () => { state.instances.push(newInstance(state.instances.length + 1)); activate(state.instances.length - 1); } }, '+'));
+}
+function activate(i){
+  state.active = i; save();
+  renderTabs(); renderInstBar(); renderProgBar(); refreshAll(); checkConflicts(); refreshLibrary();
+}
+function fillPorts(sel, map, id, name){
+  sel.textContent = '';
+  sel.append(h('option', { value: '' }, '— none —'));
+  const found = resolvePort(map, id, name);
+  if (midi) for (const p of map.values()) sel.append(h('option', { value: p.id }, p.name + (p.state === 'disconnected' ? ' (off)' : '')));
+  if (!found && name) sel.append(h('option', { value: '__missing' }, name + ' (missing)'));
+  sel.value = found ? found.id : name ? '__missing' : '';
+}
+function renderInstBar(){
+  const inst = cur();
+  $('#instLabel').value = inst.label;
+  fillPorts($('#inSel'), midi ? midi.inputs : new Map(), inst.inId, inst.inName);
+  fillPorts($('#outSel'), midi ? midi.outputs : new Map(), inst.outId, inst.outName);
+  $('#chSel').value = inst.ch;
+  renderIdent();
+  const cs = $('#copySel'); cs.textContent = '';
+  cs.append(h('option', { value: '' }, 'Copy to…'));
+  state.instances.forEach((o, i) => { if (i !== state.active) cs.append(h('option', { value: i }, o.label)); });
+}
+function renderIdent(){
+  const inst = cur(), b = $('#ident');
+  if (inst.ident){ b.textContent = 'Evolver ✓'; b.className = 'badge ok'; b.title = 'Identity reply bytes: ' + inst.ident.map(x => x.toString(16).padStart(2, '0')).join(' '); }
+  else { b.textContent = outFor(inst) ? 'no answer yet' : 'not connected'; b.className = 'badge'; b.title = ''; }
+}
+function renderProgBar(){
+  const inst = cur();
+  $('#progLoc').textContent = locName(inst.bank, inst.prog);
+  if (document.activeElement !== $('#progName')) $('#progName').value = inst.name;
+  $('#bankSel').value = inst.bank; $('#progSel').value = inst.prog;
+}
+function checkConflicts(){
+  const w = $('#warn'), msgs = [];
+  if (midi){
+    const byOut = new Map(), byIn = new Map();
+    state.instances.forEach(i => {
+      const o = outFor(i), n = inFor(i);
+      if (o) byOut.set(o.id, [...(byOut.get(o.id) || []), i.label]);
+      if (n) byIn.set(n.id, [...(byIn.get(n.id) || []), i.label]);
+    });
+    byOut.forEach((l, id) => { if (l.length > 1) msgs.push(`${l.join(' & ')} share the MIDI Out "${midi.outputs.get(id).name}": SysEx has no device ID, so both Evolvers would receive every dump.`); });
+    byIn.forEach((l, id) => { if (l.length > 1) msgs.push(`${l.join(' & ')} share the MIDI In "${midi.inputs.get(id).name}": replies can't be told apart.`); });
+  }
+  w.textContent = msgs.join('  ');
+  w.classList.toggle('show', msgs.length > 0);
+}
+function setView(v){
+  state.view = v; save();
+  $('#editor').hidden = v !== 'prog'; $('#seqview').hidden = v !== 'seq'; $('#libview').hidden = v !== 'lib';
+  if (v === 'lib') refreshLibrary();
+  document.querySelectorAll('#views button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+}
+function applyUi(){ document.documentElement.style.setProperty('--ui', state.ui || 1.5); }
+function confirmBox(text){
+  return new Promise(res => {
+    $('#modalText').textContent = text; $('#modal').hidden = false;
+    const close = v => { $('#modal').hidden = true; $('#modalYes').onclick = $('#modalNo').onclick = null; res(v); };
+    $('#modalYes').onclick = () => close(true); $('#modalNo').onclick = () => close(false);
+  });
+}
+
+/* ------------------------- .syx files ------------------------- */
+function splitSysex(bytes){
+  const msgs = []; let start = -1;
+  bytes.forEach((b, i) => { if (b === 0xF0) start = i; else if (b === 0xF7 && start >= 0){ msgs.push(bytes.slice(start, i + 1)); start = -1; } });
+  return msgs;
+}
+function loadSyx(buf){
+  const inst = cur();
+  const msgs = splitSysex(Array.from(new Uint8Array(buf))).filter(m => m[1] === 1 && m[2] === 0x20 && (m[4] === T.EDIT_DUMP || m[4] === T.PROG_DUMP));
+  if (!msgs.length){ log('No Evolver program found in this file.'); return; }
+  const m = msgs[0];
+  const body = m.slice(m[4] === T.PROG_DUMP ? 7 : 5, m.length - 1);
+  const names = splitSysex(Array.from(new Uint8Array(buf))).filter(x => x[1] === 1 && x[2] === 0x20 && x[4] === T.NAME_DUMP);
+  if (names.length) inst.name = String.fromCharCode(...names[0].slice(7, 23)).trimEnd();
+  loadData(inst, unpack(body), `loaded from file${msgs.length > 1 ? ` (first of ${msgs.length} programs — bank files come with the librarian)` : ''}`);
+  renderProgBar();
+  if (live() && outFor(inst)) send(inst, editDump(inst));
+}
+function saveSyx(){
+  const inst = cur();
+  const bytes = [...editDump(inst), ...[...HDR, T.NAME_DUMP, inst.bank, inst.prog, ...nameBytes(inst.name), 0xF7]];
+  const a = h('a', { href: URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'application/octet-stream' })),
+                     download: (inst.name || 'evolver-program').trim().replace(/[^\w\- ]+/g, '_') + '.syx' });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/* ------------------------- wiring ------------------------- */
+function wire(){
+  for (let c = 1; c <= 16; c++) $('#chSel').append(h('option', { value: c }, c));
+  BANKS.forEach((b, i) => $('#bankSel').append(h('option', { value: i }, b)));
+  for (let p = 0; p < 128; p++) $('#progSel').append(h('option', { value: p }, String(p + 1).padStart(3, '0')));
+
+  document.querySelectorAll('#views button').forEach(b => b.onclick = () => setView(b.dataset.v));
+  $('#uiSize').value = state.ui || 1.5;
+  $('#uiSize').addEventListener('change', e => { state.ui = +e.target.value; applyUi(); save(); });
+  $('#instLabel').addEventListener('input', e => { cur().label = e.target.value || 'Evolver'; renderTabs(); save(); });
+  const portPick = (sel, map, idKey, nameKey) => sel.addEventListener('change', e => {
+    const inst = cur(), v = e.target.value;
+    if (v === '__missing') return;
+    const p = v && map().get(v);
+    inst[idKey] = p ? p.id : ''; inst[nameKey] = p ? p.name : '';
+    inst.ident = null; save(); renderIdent(); renderTabs(); checkConflicts();
+    if (outFor(inst) && inFor(inst)) identify(inst);
+  });
+  portPick($('#inSel'), () => midi.inputs, 'inId', 'inName');
+  portPick($('#outSel'), () => midi.outputs, 'outId', 'outName');
+  $('#chSel').addEventListener('change', e => { cur().ch = +e.target.value; save(); });
+  $('#btnIdent').onclick = () => { if (needOut(cur())) identify(cur()); };
+  $('#btnRemove').onclick = async () => {
+    if (state.instances.length < 2){ log('Keep at least one Evolver.'); return; }
+    if (!await confirmBox(`Remove "${cur().label}" from the editor? (Nothing is changed on the synth.)`)) return;
+    state.instances.splice(state.active, 1); activate(Math.max(0, state.active - 1));
+  };
+
+  $('#progName').addEventListener('input', e => { cur().name = e.target.value; renderTabs(); save(); });
+  $('#btnGet').onclick = () => getProgram(cur(), +$('#bankSel').value, +$('#progSel').value);
+  $('#btnReceive').onclick = () => requestEdit(cur());
+  $('#btnSend').onclick = () => sendEdit(cur());
+  $('#btnWrite').onclick = async () => {
+    const inst = cur(), b = +$('#bankSel').value, p = +$('#progSel').value;
+    if (!needOut(inst)) return;
+    if (await confirmBox(`Write "${inst.name || 'untitled'}" to ${locName(b, p)} on ${inst.label}? The program stored there will be replaced.`)) writeProgram(inst, b, p);
+  };
+  const noteOn = () => { const i = cur(); send(i, [0x90 | (i.ch - 1), 48, 100]); };
+  const noteOff = () => { const i = cur(); send(i, [0x80 | (i.ch - 1), 48, 0]); };
+  $('#btnRun').onclick = () => startStop(cur());
+  $('#btnNote').addEventListener('pointerdown', noteOn);
+  $('#btnNote').addEventListener('pointerup', noteOff);
+  $('#btnNote').addEventListener('pointerleave', e => { if (e.buttons) noteOff(); });
+
+  $('#btnInit').onclick = async () => {
+    const inst = cur();
+    if (!await confirmBox(`Replace the editor content of ${inst.label} with a basic patch (1 saw oscillator, filter open, plain VCA)? Nothing is stored on the synth until you Write.`)) return;
+    inst.name = 'Init';
+    loadData(inst, initData(), 'basic patch loaded');
+    renderProgBar(); renderTabs();
+    if (live() && outFor(inst)) send(inst, editDump(inst));
+  };
+  $('#btnLoad').onclick = () => $('#file').click();
+  $('#file').addEventListener('change', e => {
+    const f = e.target.files[0]; if (!f) return;
+    f.arrayBuffer().then(loadSyx); e.target.value = '';
+  });
+  $('#btnSave').onclick = saveSyx;
+  $('#copySel').addEventListener('change', e => {
+    if (e.target.value === '') return;
+    const src = cur(), dst = state.instances[+e.target.value];
+    dst.data = src.data.slice(); dst.name = src.name;
+    const sent = live() && outFor(dst) && send(dst, editDump(dst));
+    log(`Copied to ${dst.label}${sent ? ' and sent to its edit buffer' : ' (editor only)'}.`);
+    e.target.value = ''; save(); renderTabs();
+  });
+}
+
+load();
+applyUi();
+buildEditor();
+buildLibrary();
+wire();
+setView(state.view || 'prog');
+renderTabs(); renderInstBar(); renderProgBar(); refreshAll();
+initMIDI();
+</script>
+</body>
+</html>
