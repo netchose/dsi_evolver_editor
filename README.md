@@ -87,6 +87,28 @@ Unlike the classic editors, it can **control several Evolvers at the same time**
 
 ---
 
+## Release notes
+
+### 2026-11-26
+**New**
+- **Global parameters** popup (button *Global…*): master volume, transpose, BPM, clock divide, MIDI clock, poly chain, input gain, fine tune, MIDI receive and channel. MIDI Transmit is left out on purpose: setting it to Off would cut the editor off.
+- **Searchable picker** for mod sources and destinations, grouped by category, with keyboard filtering.
+- **− / +** buttons on either side of the program name to step through the 512 programs.
+
+**Changed**
+- **Program view** redesigned: two lines of equal-height panels. The envelope graphs and the LFO boxes fill their panel. Noise level moved to Oscillators, and bend range to Controls.
+- View order is now **Library · Program · Sequencer**.
+- **Mouse wheel**: one step per notch on every knob (it was 2 on wide-range knobs). Hold **Shift** for steps of 10.
+- Transpose and Fine Tune in the Global popup use bipolar sliders that fill from the centre, like a pan control.
+
+**Fixed**
+- **UI size** had no effect: the page stayed at the same size whatever the setting.
+
+### 2026-11-25
+- First release: multi-Evolver program editor, sequencer and library.
+
+---
+
 ## Requirements
 
 - **Chrome or Edge** (desktop). Firefox and Safari are not supported.
@@ -149,175 +171,12 @@ Program change: `Bn 20 <bank 0–3>` (CC 32), then `Cn <prog 0–127>`.
 Each 7 data bytes are sent as 8 MIDI bytes. The first byte of each packet holds the MS bits of the next 7 bytes (bit 0 = first byte), and those 7 bytes follow with their MS bit cleared. So 192 data bytes become **220** packed bytes (27 full packets + 1 packet of 3 bytes).
 
 ### Program data layout (192 bytes)
-- Bytes **0–127**: program parameters (table below).
+- Bytes **0–127**: program parameters 0–127, in the order of the Evolver manual (MIDI implementation, Program Parameter Data).
 - Bytes **128–191**: sequencer, 4 sequences × 16 steps. Byte = 128 + seq × 16 + step, where seq and step are 0-based.
   - Step values: `0–100` · `101` = **RST** (end of sequence) · `102` = **OFF** (rest, Seq 1 only).
 - The program name is **not** part of the dump. It is exchanged with message types `10`/`11`.
 
-### Program parameters
-
-Lists referenced below:
-- **Mod destinations (0–68)**:
-  - None
-  - Osc 1–4 / All frequency
-  - Osc 1–4 / All level
-  - Noise level
-  - Ext In level
-  - Osc 1/2/All PW
-  - FM 4>3, FM 3>4, RM 4>3, RM 3>4
-  - Filter frequency, filter split, resonance
-  - HP frequency
-  - VCA amount, pan
-  - Feedback frequency, feedback amount
-  - Delay times 1/2/3/All, delay amounts 1/2/3/All, delay feedback 1/2
-  - LFO 1–4/All frequency, LFO 1–4/All amount
-  - Env 1/2/3/All amount, attack, decay and release
-  - Filter L/R frequency, filter L/R resonance
-  - Distortion
-- **Sequencer destinations**: the same list plus 69 Clock Mult, 70 MIDI Note Out, 71 MIDI Velocity Out, 72 MIDI Mod Wheel Out, 73 MIDI Pressure Out, 74 MIDI Breath Out, 75 MIDI Foot Out.
-- **Mod sources (0–24)**:
-  - None
-  - Seq 1–4
-  - LFO 1–4
-  - Filter Env, Amp Env, Env 3
-  - Ext Peak, Ext Env Follower
-  - Pitch Bend, Mod Wheel, Pressure, Breath, Foot
-  - Velocity, Note Number, Expression
-  - Noise, Osc 3, Osc 4
-
-| # | Parameter | Range | Display / values |
-|---:|---|---|---|
-| 0 | Osc 1 Freq | 0–120 | note C0…C10 (semitones) |
-| 1 | Osc 1 Fine | 0–100 | −50…+50 (50 = centre) |
-| 2 | Osc 1 Shape | 0–102 | 0 Saw · 1 Tri · 2 Saw/Tri · 3–102 Pulse width 0–99 |
-| 3 | Osc 1 Level | 0–100 | value |
-| 4 | Osc 2 Freq | 0–120 | note C0…C10 (semitones) |
-| 5 | Osc 2 Fine | 0–100 | −50…+50 (50 = centre) |
-| 6 | Osc 2 Shape | 0–102 | 0 Saw · 1 Tri · 2 Saw/Tri · 3–102 Pulse width 0–99 |
-| 7 | Osc 2 Level | 0–100 | value |
-| 8 | Osc 3 Freq | 0–120 | note C0…C10 (semitones) |
-| 9 | Osc 3 Fine | 0–100 | −50…+50 (50 = centre) |
-| 10 | Osc 3 Shape | 0–127 | waveshape 1–128 (1–96 ROM, 97–128 user) |
-| 11 | Osc 3 Level | 0–100 | value |
-| 12 | Osc 4 Freq | 0–120 | note C0…C10 (semitones) |
-| 13 | Osc 4 Fine | 0–100 | −50…+50 (50 = centre) |
-| 14 | Osc 4 Shape | 0–127 | waveshape 1–128 (1–96 ROM, 97–128 user) |
-| 15 | Osc 4 Level | 0–100 | value |
-| 16 | LPF Frequency | 0–164 | value |
-| 17 | LPF Env Amount | 0–198 | −99…+99 (99 = 0) |
-| 18 | LPF Attack | 0–110 | value |
-| 19 | LPF Decay | 0–110 | value |
-| 20 | LPF Sustain | 0–100 | value |
-| 21 | LPF Release | 0–110 | value |
-| 22 | Resonance | 0–100 | value |
-| 23 | LPF Key Amount | 0–100 | value |
-| 24 | VCA Level | 0–100 | value |
-| 25 | VCA Env Amount | 0–100 | value |
-| 26 | VCA Attack | 0–110 | value |
-| 27 | VCA Decay | 0–110 | value |
-| 28 | VCA Sustain | 0–100 | value |
-| 29 | VCA Release | 0–110 | value |
-| 30 | Output Pan | 0–6 | Stereo 1 / Stereo 2 / Stereo 3 / Mono / Reverse 1 / Reverse 2 / Reverse 3 |
-| 31 | Program Volume | 0–100 | value |
-| 32 | Feedback Freq | 0–48 | note C0…C10 (semitones) |
-| 33 | Feedback Level | 0–100 | value |
-| 34 | Grunge | 0–1 | Off / On |
-| 35 | Delay 1 Time | 0–166 | 0–150 time · 151–166 synced (s32…st6) |
-| 36 | Delay 1 Amount | 0–100 | value |
-| 37 | Delay FB to Delay | 0–100 | value |
-| 38 | Delay FB to Filter | 0–100 | value |
-| 39 | Output Hack | 0–14 | value |
-| 40 | LFO 1 Freq | 0–160 | 0–150 free · 151–160 synced (s32…st16) |
-| 41 | LFO 1 Shape | 0–4 | Triangle / Rev Saw / Saw / Pulse / Random |
-| 42 | LFO 1 Amount | 0–200 | 0–100 · 101–200 key-sync (shown K1–K100, unverified) |
-| 43 | LFO 1 Dest | 0–68 | mod destination list (0–68) |
-| 44 | LFO 2 Freq | 0–160 | 0–150 free · 151–160 synced (s32…st16) |
-| 45 | LFO 2 Shape | 0–4 | Triangle / Rev Saw / Saw / Pulse / Random |
-| 46 | LFO 2 Amount | 0–200 | 0–100 · 101–200 key-sync (shown K1–K100, unverified) |
-| 47 | LFO 2 Dest | 0–68 | mod destination list (0–68) |
-| 48 | Env 3 Amount | 0–198 | −99…+99 (99 = 0) |
-| 49 | Env 3 Dest | 0–68 | mod destination list (0–68) |
-| 50 | Env 3 Attack | 0–110 | value |
-| 51 | Env 3 Decay | 0–110 | value |
-| 52 | Env 3 Sustain | 0–100 | value |
-| 53 | Env 3 Release | 0–110 | value |
-| 54 | Trigger Select | 0–13 | SEQ/MIDI / SEQUENCER / MIDI / MIDI RST / MIDI GATE / MIDI G/R / EXT IN / EXT IN RST / EXT IN GATE / EXT IN G/R / MIDI SEQ 1 / MIDI SEQ 1R / EXT IN SQ 1 / MIDI SQ SP |
-| 55 | Key Off / Transpose | 0–73 | 0 = MIDI off · 1–73 = −36…+36 (37 = 0) |
-| 56 | Seq 1 Dest | 0–75 | mod destinations + 69–75 (clock mult, MIDI outs) |
-| 57 | Seq 2 Dest | 0–75 | mod destinations + 69–75 (clock mult, MIDI outs) |
-| 58 | Seq 3 Dest | 0–75 | mod destinations + 69–75 (clock mult, MIDI outs) |
-| 59 | Seq 4 Dest | 0–75 | mod destinations + 69–75 (clock mult, MIDI outs) |
-| 60 | Noise Level | 0–100 | value |
-| 61 | Ext In Volume | 0–100 | value |
-| 62 | Ext In Mode | 0–3 | Stereo / Left / Right / Split |
-| 63 | Input Hack | 0–14 | value |
-| 64 | Osc 1 Glide | 0–200 | 0–100 glide · 101–199 fingered · 200 osc off for MIDI |
-| 65 | Osc Sync | 0–1 | Off / On |
-| 66 | Program Tempo | 30–250 | BPM |
-| 67 | Clock Divide | 0–12 | 1/2 / 1/4 / 1/8 / 1/8 half swing / 1/8 full swing / 1/8 triplet / 1/16 / 1/16 half swing / 1/16 full swing / 1/16 triplet / 1/32 / 1/32 triplet / 1/64 triplet |
-| 68 | Osc 2 Glide | 0–200 | 0–100 glide · 101–199 fingered · 200 osc off for MIDI |
-| 69 | Osc Slop | 0–5 | value |
-| 70 | Pitch Bend Range | 0–12 | semitones |
-| 71 | Key Mode | 0–5 | Low Note / Low Note Retrig / High Note / High Note Retrig / Last Note / Last Note Retrig |
-| 72 | Osc 3 Glide | 0–200 | 0–100 glide · 101–199 fingered · 200 osc off for MIDI |
-| 73 | FM Osc 4>3 | 0–100 | value |
-| 74 | Shape Mod Osc 3 | 0–4 | Off / Seq 1 / Seq 2 / Seq 3 / Seq 4 |
-| 75 | Ring Mod 4>3 | 0–100 | value |
-| 76 | Osc 4 Glide | 0–200 | 0–100 glide · 101–199 fingered · 200 osc off for MIDI |
-| 77 | FM Osc 3>4 | 0–100 | value |
-| 78 | Shape Mod Osc 4 | 0–4 | Off / Seq 1 / Seq 2 / Seq 3 / Seq 4 |
-| 79 | Ring Mod 3>4 | 0–100 | value |
-| 80 | Filter Poles | 0–1 | 2-Pole / 4-Pole |
-| 81 | LPF Velocity | 0–100 | value |
-| 82 | LPF Audio Mod | 0–100 | value |
-| 83 | LPF L/R Split | 0–100 | value |
-| 84 | Highpass | 0–199 | 0–99 on output · 100–199 on input |
-| 85 | Mod 1 Source | 0–24 | mod source list (0–24) |
-| 86 | Mod 1 Amount | 0–198 | −99…+99 (99 = 0) |
-| 87 | Mod 1 Dest | 0–68 | mod destination list (0–68) |
-| 88 | Envelope Shape | 0–1 | Exp / Lin |
-| 89 | VCA Velocity | 0–100 | value |
-| 90 | Mod 2 Source | 0–24 | mod source list (0–24) |
-| 91 | Mod 2 Amount | 0–198 | −99…+99 (99 = 0) |
-| 92 | Mod 2 Dest | 0–68 | mod destination list (0–68) |
-| 93 | Mod 3 Source | 0–24 | mod source list (0–24) |
-| 94 | Mod 3 Amount | 0–198 | −99…+99 (99 = 0) |
-| 95 | Mod 3 Dest | 0–68 | mod destination list (0–68) |
-| 96 | Mod 4 Source | 0–24 | mod source list (0–24) |
-| 97 | Mod 4 Amount | 0–198 | −99…+99 (99 = 0) |
-| 98 | Mod 4 Dest | 0–68 | mod destination list (0–68) |
-| 99 | Delay 2 Time | 0–166 | 0–150 time · 151–166 synced (s32…st6) |
-| 100 | Delay 2 Amount | 0–100 | value |
-| 101 | Delay 3 Time | 0–166 | 0–150 time · 151–166 synced (s32…st6) |
-| 102 | Delay 3 Amount | 0–100 | value |
-| 103 | Distortion | 0–199 | 0–99 on output · 100–199 on input |
-| 104 | LFO 3 Freq | 0–160 | 0–150 free · 151–160 synced (s32…st16) |
-| 105 | LFO 3 Shape | 0–4 | Triangle / Rev Saw / Saw / Pulse / Random |
-| 106 | LFO 3 Amount | 0–200 | 0–100 · 101–200 key-sync (shown K1–K100, unverified) |
-| 107 | LFO 3 Dest | 0–68 | mod destination list (0–68) |
-| 108 | LFO 4 Freq | 0–160 | 0–150 free · 151–160 synced (s32…st16) |
-| 109 | LFO 4 Shape | 0–4 | Triangle / Rev Saw / Saw / Pulse / Random |
-| 110 | LFO 4 Amount | 0–200 | 0–100 · 101–200 key-sync (shown K1–K100, unverified) |
-| 111 | LFO 4 Dest | 0–68 | mod destination list (0–68) |
-| 112 | Env 3 Delay | 0–100 | value |
-| 113 | Env 3 Velocity | 0–100 | value |
-| 114 | Ext Peak Amount | 0–198 | −99…+99 (99 = 0) |
-| 115 | Ext Peak Dest | 0–68 | mod destination list (0–68) |
-| 116 | Env Follow Amount | 0–198 | −99…+99 (99 = 0) |
-| 117 | Env Follow Dest | 0–68 | mod destination list (0–68) |
-| 118 | Velocity Amount | 0–198 | −99…+99 (99 = 0) |
-| 119 | Velocity Dest | 0–68 | mod destination list (0–68) |
-| 120 | Mod Wheel Amount | 0–198 | −99…+99 (99 = 0) |
-| 121 | Mod Wheel Dest | 0–68 | mod destination list (0–68) |
-| 122 | Pressure Amount | 0–198 | −99…+99 (99 = 0) |
-| 123 | Pressure Dest | 0–68 | mod destination list (0–68) |
-| 124 | Breath Amount | 0–198 | −99…+99 (99 = 0) |
-| 125 | Breath Dest | 0–68 | mod destination list (0–68) |
-| 126 | Foot Amount | 0–198 | −99…+99 (99 = 0) |
-| 127 | Foot Dest | 0–68 | mod destination list (0–68) |
-
 ### Not implemented (yet)
-- Global (main) parameters: MIDI clock mode, channel, transpose, and so on.
 - Full bank dumps (program data for whole banks) and bank `.syx` files.
 - Waveshape (user wave 97–128) dumps.
 
