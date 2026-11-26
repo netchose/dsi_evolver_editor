@@ -677,7 +677,7 @@ function K(id, label){
   svg.append(val, cap, needle);
   const kv = h('div', { class: 'kv' });
   const wrap = h('div', { class: 'knob' }, svg, kv, h('div', { class: 'kl' }, label || p.name));
-  const tip = v => `${p.name}  •  param ${id}  •  raw ${v} (${p.min}–${p.max})\nDrag / wheel (Shift = fine), double-click to type`;
+  const tip = v => `${p.name}  •  param ${id}  •  raw ${v} (${p.min}–${p.max})\nDrag (Shift = fine), wheel 1 per notch (Shift = 10), double-click to type`;
   const draw = (v, remote) => {
     const t = (v - p.min) / span, deg = A0 + t * (A1 - A0);
     const c = p.center !== undefined ? A0 + (p.center - p.min) / span * (A1 - A0) : A0;
@@ -704,9 +704,14 @@ function K(id, label){
   });
   const end = () => { drag = null; };
   svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
+  // one step per wheel notch (Shift = 10); small touchpad deltas add up to a notch first
+  let wacc = 0;
   svg.addEventListener('wheel', e => {
     e.preventDefault();
-    const step = (e.shiftKey ? 1 : Math.max(1, Math.round(span / 100))) * (e.deltaY < 0 ? 1 : -1);
+    wacc += e.deltaY;
+    if (Math.abs(wacc) < 50) return;
+    const step = (e.shiftKey ? 10 : 1) * (wacc < 0 ? 1 : -1);
+    wacc = 0;
     setParam(cur(), id, cur().data[id] + step);
   }, { passive: false });
   const edit = () => {

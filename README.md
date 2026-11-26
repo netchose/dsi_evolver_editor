@@ -39,7 +39,7 @@ Unlike the classic editors, it can **control several Evolvers at the same time**
   - At 150 % UI size, the layout fits a 2560 × 1440 window. On a narrower window the panels wrap.
 - Knobs:
   - Drag vertically. Hold **Shift** for fine steps.
-  - Use the mouse wheel. Hold **Shift** for steps of 1.
+  - Use the mouse wheel: one step per notch. Hold **Shift** for steps of 10.
   - **Double-click** a knob to type a value. Display units are accepted: `-24`, `+12`, `C2`, `OFF`.
 - List parameters use drop-downs, and two-state parameters use toggle buttons. Hover any control to see the parameter number and raw value.
 - Mod sources and destinations (LFOs, Env 3, mod slots, controllers, sequencer rows) open a searchable picker, grouped by category (Oscillators, Filter, Delay, LFO, Envelopes…). Type to filter (`delay 2`, `osc1`, `env att`), use the arrow keys and Enter to choose, Esc to close. The mouse wheel steps through the list.
