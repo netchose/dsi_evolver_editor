@@ -21,6 +21,16 @@ Unlike the classic editors, it can **control several Evolvers at the same time**
 - **Copy to…** copies the current program to another Evolver's tab and sends it to that unit's edit buffer.
 - A warning appears if two tabs share a MIDI port. Evolver SysEx has **no device ID**, so each unit needs its own MIDI In/Out pair.
 
+### Global parameters (button *Global…*)
+- Opens a popup with the Evolver's Main (global) parameters for the current tab, read from the synth when it opens (**Reload** asks again):
+  - Row 1: Master Volume, Transpose, BPM, Clock Divide, Use Program Tempo, MIDI Clock
+  - Row 2: Lock Sequence, Poly Chain, Input Gain, Fine Tune, MIDI Receive, MIDI Channel
+- Transpose and Fine Tune are bipolar: their slider fills from the centre, like a pan control. Double-click recentres it.
+- MIDI Transmit is left out on purpose: setting it to Off would stop the Evolver answering the editor.
+- Each change is sent at once (SysEx *Main Parameter*, type `09`). The Evolver keeps these settings when switched off.
+- Changing the MIDI Channel to 1–16 also moves the tab's channel, so the editor keeps reaching the synth.
+- Setting MIDI Receive to anything other than **All** can cut the editor off; a warning is shown in the log.
+
 ### Program editor (view *Program*)
 - All 128 program parameters, grouped by section:
   - Oscillators 1–4
@@ -67,6 +77,7 @@ Unlike the classic editors, it can **control several Evolvers at the same time**
 
 ### Program management
 - **Get**: Bank Select (CC 32) and Program Change, then requests the edit buffer and the name.
+- **− / +** on either side of the program name: go to the previous or next program, the same way as **Get**. It wraps across banks (A128 → B001, A001 → D128).
 - **Receive**: requests the edit buffer, the current bank/program and its name.
 - **Send**: sends the editor content to the Evolver's edit buffer. Nothing is stored.
 - **Write…**: stores the program and its name to the selected bank/program, after a confirmation.
@@ -132,8 +143,9 @@ All Evolver messages start with `F0 01 20 01 <type>` and end with `F7`. In that 
 | `05` | Request program dump | `bank` `prog` | (reserved for the librarian) |
 | `06` | Request edit buffer | — | Receive, Get |
 | `08` | Sequence step parameter | `step` (0–63) `vL` `vH` | live sequencer edits |
+| `09` | Main parameter | `pp` (0–14) `vL` `vH` | Global popup |
 | `0E` | Request main parameters | — | find the current bank/program |
-| `0F` | Main parameter dump | 16 × (LS, MS) nibbles | bank = param 1, program = param 0 |
+| `0F` | Main parameter dump | 16 × (LS, MS) nibbles | bank = param 1, program = param 0; Global popup |
 | `10` | Request program name | `bank` `prog` | library, Get, Receive |
 | `11` | Program name dump | `bank` `prog` + 16 ASCII bytes | names; also sent on Write |
 | `12` | Start/Stop button | — | sequencer start/stop |

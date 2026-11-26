@@ -12,7 +12,8 @@
 }
 *{box-sizing:border-box}
 html{font-size:calc(12px * var(--ui,1.5))}
-html,body{margin:0;background:var(--bg);color:var(--txt);font:1rem/1.3 "Segoe UI",system-ui,sans-serif}
+html,body{margin:0;background:var(--bg);color:var(--txt)}
+body{font:1rem/1.3 "Segoe UI",system-ui,sans-serif}
 button,select,input{font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--edge);border-radius:0.333rem;padding:0.333rem 0.667rem}
 button{cursor:pointer}
 button:hover{border-color:var(--acc)}
@@ -42,6 +43,8 @@ label{color:var(--dim);display:inline-flex;align-items:center;gap:0.417rem}
 .led.in.on{background:var(--cool);transition:none}
 .led.out.on{background:var(--acc);transition:none}
 #progName{width:12.5rem;font-family:var(--mono);color:var(--acc);background:#0f1215;letter-spacing:.04em}
+.stepper{display:inline-flex;align-items:center;gap:0.25rem}
+.stepper button{width:2.167rem;padding:0.333rem 0;font-weight:700}
 #progLoc{font-family:var(--mono);color:var(--cool);min-width:3.333rem}
 #warn{display:none;padding:0.5rem 1.167rem;background:#3a2418;color:#f5c39b;border-bottom:1px solid #6b3a20}
 #warn.show{display:block}
@@ -89,11 +92,25 @@ label{color:var(--dim);display:inline-flex;align-items:center;gap:0.417rem}
 #log{padding:0.5rem 1.167rem;color:var(--dim);font-family:var(--mono);font-size:0.917rem;border-top:1px solid var(--edge);min-height:2.167rem}
 #log b{color:var(--txt);font-weight:400}
 
-#modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:10}
-#modal[hidden]{display:none}
-#modal .box{background:var(--panel);border:1px solid var(--edge);border-radius:0.667rem;padding:1.5rem 1.667rem;max-width:35rem}
-#modal .box p{margin:0 0 1.167rem;font-size:1.083rem}
-#modal .btns{display:flex;justify-content:flex-end;gap:0.667rem}
+.modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:10}
+.modal[hidden]{display:none}
+.modal .box{background:var(--panel);border:1px solid var(--edge);border-radius:0.667rem;padding:1.5rem 1.667rem;max-width:35rem}
+.modal .box p{margin:0 0 1.167rem;font-size:1.083rem}
+.modal .btns{display:flex;justify-content:flex-end;gap:0.667rem}
+#gmodal .box{max-width:64rem;width:calc(100% - 3rem);max-height:calc(100vh - 3rem);overflow:auto}
+#gmodal h2{margin:0 0 0.25rem;font-size:1.167rem;color:var(--acc);letter-spacing:.1em;text-transform:uppercase}
+#gmodal h3{margin:1rem 0 0.5rem;font-size:0.833rem;letter-spacing:.14em;color:var(--acc);text-transform:uppercase;font-weight:600}
+.ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(26rem,100%),1fr));gap:0.5rem 3rem}
+.grow{display:grid;grid-template-columns:9rem 1fr 4.5rem;align-items:center;gap:0.5rem}
+.grow .kl{color:var(--dim)}
+.grow select{grid-column:2 / 4;background:#0f1215;color:var(--acc);border-color:#30363f}
+.grow input[type=range]{-webkit-appearance:none;appearance:none;height:0.5rem;padding:0;border:0;border-radius:0.25rem;cursor:pointer;
+  background:linear-gradient(to right,#2f3640 var(--a),var(--acc) var(--a),var(--acc) var(--b),#2f3640 var(--b))}
+.grow input[type=range].bip{background:linear-gradient(to right,transparent calc(50% - 1px),var(--txt) calc(50% - 1px),var(--txt) calc(50% + 1px),transparent calc(50% + 1px)),
+  linear-gradient(to right,#2f3640 var(--a),var(--cool) var(--a),var(--cool) var(--b),#2f3640 var(--b))}
+.grow input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:0.833rem;height:1.333rem;border-radius:0.2rem;background:#dde2e9;border:1px solid #000}
+.grow .kv{font-family:var(--mono);color:#fff;text-align:right}
+#gmodal.wait .gbody{opacity:.45;pointer-events:none}
 
 #views{display:flex;gap:0}
 #views button{border-radius:0;padding:0.333rem 1rem}
@@ -148,15 +165,20 @@ button.big{padding:0.4rem 1rem}
   <button id="btnIdent" title="Send a Universal Inquiry to check this port pair">Identify</button>
   <span id="ident" class="badge">not checked</span>
   <span title="MIDI in" class="led in" id="ledIn"></span><span title="MIDI out" class="led out" id="ledOut"></span>
+  <button id="btnGlobal" title="Edit the Evolver's global (Main) parameters: volume, transpose, MIDI clock, channel…">Global…</button>
   <span style="flex:1"></span>
   <button id="btnRemove" class="warn" title="Remove this Evolver from the editor">Remove</button>
 </section>
 
 <section class="bar" id="progbar">
-  <div id="views"><button data-v="prog" class="on">Program</button><button data-v="seq">Sequencer</button><button data-v="lib">Library</button></div>
+  <div id="views"><button data-v="lib">Library</button><button data-v="prog" class="on">Program</button><button data-v="seq">Sequencer</button></div>
   <span class="sep"></span>
   <span id="progLoc">—</span>
-  <input type="text" id="progName" maxlength="16" placeholder="program name" spellcheck="false">
+  <span class="stepper">
+    <button id="btnPrev" title="Previous program (loads it from the Evolver)">−</button>
+    <input type="text" id="progName" maxlength="16" placeholder="program name" spellcheck="false">
+    <button id="btnNext" title="Next program (loads it from the Evolver)">+</button>
+  </span>
   <label>Bank <select id="bankSel"></select></label>
   <label>Prog <select id="progSel"></select></label>
   <button id="btnGet" title="Program change to Bank/Prog, then receive it">Get</button>
@@ -181,7 +203,13 @@ button.big{padding:0.4rem 1rem}
 <main id="libview" hidden></main>
 <footer id="log">Ready.</footer>
 
-<div id="modal" hidden><div class="box"><p id="modalText"></p><div class="btns"><button id="modalNo">Cancel</button><button id="modalYes" class="warn">Confirm</button></div></div></div>
+<div id="gmodal" class="modal" hidden><div class="box">
+  <h2 id="gTitle">Global parameters</h2>
+  <div class="hint" id="gStatus"></div>
+  <div class="gbody" id="gBody"></div>
+  <div class="btns" style="margin-top:1.167rem"><button id="gReload" title="Request the Main parameters from the Evolver again">Reload</button><button id="gClose">Close</button></div>
+</div></div>
+<div id="modal" class="modal" hidden><div class="box"><p id="modalText"></p><div class="btns"><button id="modalNo">Cancel</button><button id="modalYes" class="warn">Confirm</button></div></div></div>
 
 <script>
 'use strict';
@@ -190,7 +218,7 @@ button.big{padding:0.4rem 1rem}
    Header F0 01 20 01 <type> … F7
    ============================================================ */
 const HDR = [0xF0, 0x01, 0x20, 0x01];
-const T = { PARAM:0x01, PROG_DUMP:0x02, EDIT_DUMP:0x03, REQ_PROG:0x05, REQ_EDIT:0x06, SEQ_PARAM:0x08,
+const T = { PARAM:0x01, PROG_DUMP:0x02, EDIT_DUMP:0x03, REQ_PROG:0x05, REQ_EDIT:0x06, SEQ_PARAM:0x08, MAIN_PARAM:0x09,
             REQ_MAIN:0x0E, MAIN_DUMP:0x0F, REQ_NAME:0x10, NAME_DUMP:0x11, RESET:0x04, START_STOP:0x12 };
 const DATA_LEN = 192;           // 128 program params + 64 sequencer steps
 const PACKED_LEN = 220;
@@ -317,6 +345,23 @@ def(114,'Ext Peak Amount',198,'bip'); def(115,'Ext Peak Dest',68,DEST); def(116,
 [[118,'Velocity'],[120,'Mod Wheel'],[122,'Pressure'],[124,'Breath'],[126,'Foot']].forEach(([b,n]) => { def(b,`${n} Amount`,198,'bip'); def(b+1,`${n} Dest`,68,DEST); });
 
 const fmtVal = (p, v) => p.list ? (p.list[v] ?? '?' + v) : FMT[p.fmt](v);
+
+/* ------------------------- Main (global) parameters 0–14 ------------------------- */
+// 0/1 (program/bank) are handled by the program bar. `opts` = [value, label] when the values have gaps.
+const MAIN = [
+  { id: 2,  row: 1, name: 'Master Volume', max: 100 },
+  { id: 3,  row: 1, name: 'Transpose', max: 72, center: 36, fmt: v => sgn(v - 36) },
+  { id: 4,  row: 1, name: 'BPM', min: 30, max: 250 },
+  { id: 5,  row: 1, name: 'Clock Divide', list: CLK_DIV },
+  { id: 6,  row: 1, name: 'Use Prog Tempo', list: ['Off', 'On'] },
+  { id: 7,  row: 1, name: 'MIDI Clock', opts: [[0,'Off — internal, not sent'],[1,'Out — internal, sent'],[2,'In — MIDI clock received'],[3,'In/Out — received and retransmitted'],[6,'In, ignore Start/Stop']] },
+  { id: 8,  row: 2, name: 'Lock Sequence', list: ['Off', 'On'] },
+  { id: 9,  row: 2, name: 'Poly Chain', list: ['Off — normal', 'All — echo all MIDI', 'Notes — echo notes only'] },
+  { id: 10, row: 2, name: 'Input Gain', list: ['0 dB','+3 dB','+6 dB','+9 dB','+12 dB','+15 dB','+18 dB','+21 dB','+24 dB'] },
+  { id: 11, row: 2, name: 'Fine Tune', max: 100, center: 50, fmt: v => sgn(v - 50) + ' ct' },
+  { id: 12, row: 2, name: 'MIDI Receive', list: ['Off — nothing received', 'All', 'Program changes only', 'Parameters only'] },
+  { id: 14, row: 2, name: 'MIDI Channel', opts: [[0, 'All (omni)'], ...Array.from({ length: 16 }, (_, i) => [i + 1, '' + (i + 1)])] },
+];
 
 // Basic patch: one saw oscillator, filter wide open, plain VCA envelope, everything else off.
 function initData(){
@@ -479,11 +524,14 @@ function handle(inst, d){
   switch (d[4]){
     case T.PARAM:     setParam(inst, body[0], body[1] | (body[2] << 4), false); break;
     case T.SEQ_PARAM: setStep(inst, body[0], body[1] | (body[2] << 4), false); break;
+    case T.MAIN_PARAM: if (inst._main && body[0] < 15){ inst._main[body[0]] = body[1] | (body[2] << 4); if (inst === gInst) renderGlobal(); } break;
     case T.EDIT_DUMP: loadData(inst, unpack(body), 'edit buffer received'); break;
     case T.PROG_DUMP: inst.bank = body[0]; inst.prog = body[1]; loadData(inst, unpack(body.slice(2)), `program ${locName(body[0], body[1])} received`); break;
     case T.MAIN_DUMP: {
       const v = i => body[2 * i] | (body[2 * i + 1] << 4);
       inst.prog = v(0); inst.bank = v(1);
+      inst._main = Array.from({ length: 15 }, (_, i) => v(i));
+      if (inst === gInst) renderGlobal();
       if (inst._wantName){ inst._wantName = false; send(inst, [...HDR, T.REQ_NAME, inst.bank, inst.prog, 0xF7]); }
       if (inst === cur()) renderProgBar();
       save(); break;
@@ -954,6 +1002,65 @@ function confirmBox(text){
   });
 }
 
+/* ------------------------- Global (Main) parameters popup ------------------------- */
+let gInst = null;               // instance shown in the popup, null when closed
+const gCtl = new Map();         // main param id -> update fn
+function buildGlobal(){
+  const body = $('#gBody');
+  [1, 2].forEach(row => {
+    const grid = h('div', { class: 'ggrid' });
+    MAIN.filter(m => m.row === row).forEach(m => {
+      const lab = h('span', { class: 'kl', title: `Main param ${m.id}` }, m.name);
+      if (m.list || m.opts){
+        const opts = m.opts || m.list.map((t, i) => [i, t]);
+        const sel = h('select', { title: `${m.name}  •  main param ${m.id}`, onchange: e => setMain(gInst, m.id, +e.target.value) },
+          opts.map(([v, t]) => h('option', { value: v }, t)));
+        gCtl.set(m.id, v => { sel.value = v; });
+        grid.append(h('div', { class: 'grow' }, lab, sel));
+      } else {
+        // bipolar params (center set) fill from the middle, like a pan control; double-click recenters
+        const min = m.min || 0, fmt = m.fmt || (v => '' + v), c = m.center ?? min;
+        const pc = v => (v - min) / (m.max - min) * 100 + '%';
+        const kv = h('span', { class: 'kv' });
+        const show = v => { kv.textContent = fmt(v); rng.style.setProperty('--a', pc(Math.min(c, v))); rng.style.setProperty('--b', pc(Math.max(c, v))); };
+        const rng = h('input', { type: 'range', min, max: m.max, step: 1, class: m.center != null ? 'bip' : null,
+          title: `${m.name}  •  main param ${m.id}` + (m.center != null ? '\nDouble-click to recenter' : ''),
+          oninput: e => { show(+e.target.value); setMain(gInst, m.id, +e.target.value); },
+          ondblclick: () => { if (m.center != null){ rng.value = c; show(c); setMain(gInst, m.id, c); } } });
+        gCtl.set(m.id, v => { rng.value = v; show(v); });
+        grid.append(h('div', { class: 'grow' }, lab, rng, kv));
+      }
+    });
+    body.append(h('h3', {}, `Main row ${row}`), grid);
+  });
+}
+function renderGlobal(){
+  const inst = gInst, m = inst._main;
+  $('#gTitle').textContent = `Global parameters — ${inst.label}`;
+  $('#gmodal').classList.toggle('wait', !m);
+  $('#gStatus').textContent = m ? 'Changes are sent to the Evolver at once and kept when it is switched off.'
+                                : outFor(inst) ? 'Waiting for the Evolver…' : 'No MIDI Out selected for this Evolver.';
+  if (m) gCtl.forEach((f, id) => f(m[id]));
+}
+function requestMain(inst){ if (needOut(inst)) send(inst, [...HDR, T.REQ_MAIN, 0xF7]); }
+function openGlobal(){
+  gInst = cur(); gInst._main = null;
+  $('#gmodal').hidden = false;
+  renderGlobal(); requestMain(gInst);
+}
+function closeGlobal(){ $('#gmodal').hidden = true; gInst = null; }
+function setMain(inst, id, v){
+  if (!inst || !inst._main) return;
+  inst._main[id] = v;
+  queueSend(inst, T.MAIN_PARAM, id, v);
+  if (id === 14 && v > 0 && inst.ch !== v){      // keep the editor on the synth's new channel
+    inst.ch = v; save();
+    if (inst === cur()) $('#chSel').value = v;
+    log(`${inst.label}: MIDI channel set to ${v} (editor follows).`);
+  }
+  if (id === 12 && v !== 1) log(`${inst.label}: MIDI Receive is no longer "All" — the editor may stop reaching this Evolver.`);
+}
+
 /* ------------------------- .syx files ------------------------- */
 function splitSysex(bytes){
   const msgs = []; let start = -1;
@@ -1003,6 +1110,11 @@ function wire(){
   portPick($('#outSel'), () => midi.outputs, 'outId', 'outName');
   $('#chSel').addEventListener('change', e => { cur().ch = +e.target.value; save(); });
   $('#btnIdent').onclick = () => { if (needOut(cur())) identify(cur()); };
+  $('#btnGlobal').onclick = openGlobal;
+  $('#gClose').onclick = closeGlobal;
+  $('#gReload').onclick = () => { gInst._main = null; renderGlobal(); requestMain(gInst); };
+  $('#gmodal').addEventListener('pointerdown', e => { if (e.target.id === 'gmodal') closeGlobal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && gInst) closeGlobal(); });
   $('#btnRemove').onclick = async () => {
     if (state.instances.length < 2){ log('Keep at least one Evolver.'); return; }
     if (!await confirmBox(`Remove "${cur().label}" from the editor? (Nothing is changed on the synth.)`)) return;
@@ -1011,6 +1123,10 @@ function wire(){
 
   $('#progName').addEventListener('input', e => { cur().name = e.target.value; renderTabs(); save(); });
   $('#btnGet').onclick = () => getProgram(cur(), +$('#bankSel').value, +$('#progSel').value);
+  // step through the 512 programs, wrapping across banks (A128 + 1 = B001, A001 − 1 = D128)
+  const stepProg = d => { const inst = cur(), n = (inst.bank * 128 + inst.prog + d + 512) % 512; getProgram(inst, n >> 7, n & 127); };
+  $('#btnPrev').onclick = () => stepProg(-1);
+  $('#btnNext').onclick = () => stepProg(1);
   $('#btnReceive').onclick = () => requestEdit(cur());
   $('#btnSend').onclick = () => sendEdit(cur());
   $('#btnWrite').onclick = async () => {
@@ -1053,6 +1169,7 @@ load();
 applyUi();
 buildEditor();
 buildLibrary();
+buildGlobal();
 wire();
 setView(state.view || 'prog');
 renderTabs(); renderInstBar(); renderProgBar(); refreshAll();
