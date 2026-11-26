@@ -32,20 +32,11 @@ Unlike the classic editors, it can **control several Evolvers at the same time**
 - Setting MIDI Receive to anything other than **All** can cut the editor off; a warning is shown in the log.
 
 ### Program editor (view *Program*)
-- All 128 program parameters, grouped by section:
-  - Oscillators 1–4, with sync, slop and noise level
-  - Osc 3 & 4 mods
-  - External input
-  - Envelope 3
-  - Low-pass filter
-  - Amp, with the Exp/Lin envelope curve
-  - HP / Feedback / Distortion
-  - Delay
-  - Output
-  - LFO 1–4
-  - Modulators 1–4
-  - Controllers, with the pitch bend range
-  - Tempo / Keys
+- All 128 program parameters, on two lines of panels. Panels on the same line share its height.
+  - Sound path: Oscillators 1–4 (with sync, slop and noise level), Osc 3 & 4 mods, Low-pass filter, Amp (with the Exp/Lin envelope curve), HP / Feedback / Distortion, Delay and Output.
+  - Modulation: External input, Envelope 3, LFO 1–4, Modulators 1–4, then two compact columns: Controls (pitch bend range, then the mod wheel, pressure, breath, velocity and foot amounts, each with its destination) and Tempo / Keys.
+  - The envelope graphs and the LFO boxes grow to fill the height of their panel.
+  - At 150 % UI size, the layout fits a 2560 × 1440 window. On a narrower window the panels wrap.
 - Knobs:
   - Drag vertically. Hold **Shift** for fine steps.
   - Use the mouse wheel. Hold **Shift** for steps of 1.

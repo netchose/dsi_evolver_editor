@@ -50,7 +50,31 @@ label{color:var(--dim);display:inline-flex;align-items:center;gap:0.417rem}
 #warn.show{display:block}
 
 /* editor */
-#editor{display:flex;flex-wrap:wrap;gap:0.667rem;padding:0.833rem 1rem;align-items:flex-start}
+#editor{display:flex;flex-direction:column;gap:0.667rem;padding:0.833rem 1rem}
+.prow{display:flex;flex-wrap:wrap;gap:0.667rem;align-items:stretch}
+.stack{display:flex;flex-direction:column;gap:0.667rem}
+.stack>.panel{flex:1}
+.vcol{display:flex;flex-direction:column;gap:0.167rem;align-self:flex-start}
+.panel>.row>.grp{align-self:stretch;flex:1}
+.panel{display:flex;flex-direction:column}
+.row.fill{flex:1;align-items:stretch}
+.row.fill>.env{flex:1 1 0;width:0;min-width:0;height:auto;min-height:4.333rem}
+.prow>*{flex-shrink:0}
+.row.fill>.env.short{max-height:7rem;align-self:center}
+.row.fill>.env.mid{max-height:9rem;align-self:center}
+.row.fill>.tog{align-self:center}
+.row.fill>.grp{justify-content:space-around}
+.panel.mini{padding:0.5rem 0.4rem 0.5rem}
+.mini h3{font-size:0.75rem}
+.mini .knob{width:6rem}
+.mini .knob svg{width:2.6rem;height:2.6rem}
+.mini .kl,.mini .knob .kv{font-size:0.75rem}
+.mini .sel{padding:0.1rem}
+.mini .sel select,.mini .sel .pick{width:6rem;min-width:0;font-size:0.833rem;overflow:hidden;text-overflow:ellipsis}
+.mini .vcol{flex:1;align-items:center;justify-content:space-between}
+.cgrid{flex:1;display:grid;grid-template-columns:repeat(2,auto);gap:0.25rem 0.333rem;align-content:space-between}
+.ccell{display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+.grp>.knob{align-self:center}
 .panel{background:var(--panel);border:1px solid var(--edge);border-radius:0.5rem;padding:0.5rem 0.667rem 0.667rem}
 .panel h3{margin:0 0 0.333rem;font-size:0.833rem;letter-spacing:.14em;color:var(--acc);text-transform:uppercase;font-weight:600}
 .row{display:flex;gap:0.167rem;align-items:flex-end;flex-wrap:nowrap}
@@ -68,7 +92,7 @@ label{color:var(--dim);display:inline-flex;align-items:center;gap:0.417rem}
 .sel{display:flex;flex-direction:column;gap:1px;padding:0.167rem 0.25rem}
 .sel .kl{font-size:0.833rem;color:var(--dim)}
 .sel select{font-size:0.917rem;background:#0f1215;color:var(--acc);border-color:#30363f}
-.sel .pick{font-size:0.917rem;background:#0f1215;color:var(--acc);border-color:#30363f;text-align:left;min-width:8.5rem;padding-right:1.5rem;position:relative;white-space:nowrap}
+.sel .pick{font-size:0.917rem;background:#0f1215;color:var(--acc);border-color:#30363f;text-align:left;min-width:7.5rem;padding-right:1.5rem;position:relative;white-space:nowrap}
 .sel .pick::after{content:'⌕';position:absolute;right:0.4rem;color:var(--dim)}
 .pickpop{position:fixed;z-index:20;width:15rem;max-height:min(26rem,70vh);display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--acc);border-radius:0.417rem;box-shadow:0 0.5rem 1.5rem #000c}
 .pickpop input{margin:0.333rem;background:#0f1215}
@@ -776,9 +800,9 @@ function B(id, label){
   return h('div', { class: 'tog' }, btn, h('div', { class: 'kl' }, label || p.name));
 }
 // Envelope graph (attack, decay, sustain, release [, delay])
-function ENV(ids, delayId){
-  const svg = s('svg', { class: 'env', viewBox: '0 0 150 52' });
-  const poly = s('polygon', { fill: 'rgba(242,163,58,.22)', stroke: 'var(--acc)', 'stroke-width': 1.5, 'stroke-linejoin': 'round' });
+function ENV(ids, delayId, cls){
+  const svg = s('svg', { class: 'env' + (cls ? ' ' + cls : ''), viewBox: '0 0 150 52', preserveAspectRatio: 'none' });
+  const poly = s('polygon', { fill: 'rgba(242,163,58,.22)', stroke: 'var(--acc)', 'stroke-width': 1.5, 'stroke-linejoin': 'round', 'vector-effect': 'non-scaling-stroke' });
   svg.append(poly);
   const draw = () => {
     const d = cur().data, [a, dc, su, r] = ids.map(i => d[i]);
@@ -791,7 +815,12 @@ function ENV(ids, delayId){
   return svg;
 }
 const row = (...k) => h('div', { class: 'row' }, ...k);
+const grow = (...k) => h('div', { class: 'row fill' }, ...k);   // takes the panel's spare height
 const grp = (title, ...k) => h('div', { class: 'grp' }, h('div', { class: 'gt' }, title), ...k);
+const prow = (...k) => h('div', { class: 'prow' }, ...k);
+const stack = (...k) => h('div', { class: 'stack' }, ...k);
+const mini = el => { el.classList.add('mini'); return el; };
+const vcol = (...k) => h('div', { class: 'vcol' }, ...k);
 const panel = (title, ...k) => h('section', { class: 'panel' }, h('h3', {}, title), ...k);
 
 // 4 x 16 sequencer. Drag to draw, right-click a step to cycle rst / off.
@@ -952,46 +981,50 @@ function buildEditor(){
     const b = (n - 1) * 4, g = [64, 68, 72, 76][n - 1];
     return row(h('div', { class: 'tag' }, n), K(b, 'Frequency'), K(b + 1, 'Fine'), K(b + 2, n < 3 ? 'Shape/PW' : 'Wave'), K(b + 3, 'Level'), K(g, 'Glide'));
   };
+  // two lines of panels: sound path, then modulation and controllers; panels on a line share its height
   ed.append(
-    panel('Oscillators',
-      row(B(65, 'Sync'), K(69, 'Osc Slop'), K(60, 'Noise Level')),
-      osc(1), osc(2), osc(3), osc(4)),
-    panel('Osc 3 & 4 Mods',
-      row(K(73, 'FM 4>3'), K(75, 'RM 4>3'), S(74, 'Shape Mod 3')),
-      row(K(77, 'FM 3>4'), K(79, 'RM 3>4'), S(78, 'Shape Mod 4'))),
-    panel('External Input',
-      row(K(61, 'Input Vol'), S(62, 'Mode'), K(63, 'Input Hack')),
-      row(K(114, 'Peak Amt'), S(115, 'Peak Dest')),
-      row(K(116, 'EnvFol Amt'), S(117, 'EnvFol Dest'))),
-    panel('Envelope 3',
-      row(S(49, 'Destination'), K(48, 'Amount'), K(113, 'Velocity'), K(112, 'Delay')),
-      row(ENV([50, 51, 52, 53], 112)),
-      row(K(50, 'Attack'), K(51, 'Decay'), K(52, 'Sustain'), K(53, 'Release'))),
-    panel('Low Pass Filter',
-      row(K(16, 'Frequency'), K(22, 'Resonance'), K(17, 'Env Amount'), K(81, 'Velocity'), K(23, 'Key Amount'), K(82, 'Audio Mod')),
-      row(B(80, 'Poles'), ENV([18, 19, 20, 21]), K(83, 'L/R Split')),
-      row(K(18, 'Attack'), K(19, 'Decay'), K(20, 'Sustain'), K(21, 'Release'))),
-    panel('Amp',
-      row(K(24, 'VCA Level'), K(25, 'Env Amount'), K(89, 'Velocity'), S(30, 'Output Pan')),
-      row(ENV([26, 27, 28, 29]), B(88, 'Env Curve')),
-      row(K(26, 'Attack'), K(27, 'Decay'), K(28, 'Sustain'), K(29, 'Release'))),
-    panel('HP · Feedback · Dist',
-      row(K(84, 'Highpass'), K(103, 'Distortion')),
-      row(K(32, 'FB Freq'), K(33, 'FB Level')),
-      row(B(34, 'Grunge'))),
-    panel('Delay',
-      row(K(35, '1 Time'), K(99, '2 Time'), K(101, '3 Time'), K(37, 'Feedback 1')),
-      row(K(36, '1 Amount'), K(100, '2 Amount'), K(102, '3 Amount'), K(38, 'Feedback 2'))),
-    panel('Output', row(K(31, 'Prg Volume')), row(K(39, 'Out Hack'))),
-    panel('LFOs', row(...[[40, 1], [44, 2], [104, 3], [108, 4]].map(([b, n]) =>
-      grp('LFO ' + n, row(K(b, 'Frequency'), K(b + 2, 'Amount')), S(b + 1, 'Shape'), S(b + 3, 'Destination'))))),
-    panel('Modulators', ...[[85, 1], [90, 2], [93, 3], [96, 4]].map(([b, n]) =>
-      row(h('div', { class: 'tag' }, n), S(b, 'Source'), K(b + 1, 'Amount'), S(b + 2, 'Destination')))),
-    panel('Controls', row(K(70, 'Bend Range')), ...[[120, 'Mod Wheel'], [122, 'Pressure'], [124, 'Breath'], [118, 'Velocity'], [126, 'Foot']].map(([b, n]) =>
-      row(S(b + 1, n + ' Dest'), K(b, 'Amount')))),
-    panel('Tempo · Keys',
-      row(K(66, 'Tempo'), S(67, 'Clock Divide'), S(54, 'Trigger')),
-      row(S(71, 'Key Mode'), K(55, 'Key Off/Xpose')))
+    prow(
+      panel('Oscillators', row(vcol(osc(1), osc(2), osc(3), osc(4)), vcol(B(65, 'Sync'), K(69, 'Osc Slop'), K(60, 'Noise Level')))),
+      panel('Osc 3 & 4 Mods',
+        row(K(73, 'FM 4>3'), K(75, 'RM 4>3'), S(74, 'Shape Mod 3')),
+        row(K(77, 'FM 3>4'), K(79, 'RM 3>4'), S(78, 'Shape Mod 4'))),
+      panel('Low Pass Filter',
+        row(K(16, 'Frequency'), K(22, 'Resonance'), K(17, 'Env Amount'), K(81, 'Velocity')),
+        row(K(23, 'Key Amount'), K(82, 'Audio Mod'), K(83, 'L/R Split'), B(80, 'Poles')),
+        grow(ENV([18, 19, 20, 21])),
+        row(K(18, 'Attack'), K(19, 'Decay'), K(20, 'Sustain'), K(21, 'Release'))),
+      panel('Amp',
+        row(K(24, 'VCA Level'), K(25, 'Env Amount'), K(89, 'Velocity'), S(30, 'Output Pan')),
+        grow(ENV([26, 27, 28, 29], null, 'short'), B(88, 'Env Curve')),
+        row(K(26, 'Attack'), K(27, 'Decay'), K(28, 'Sustain'), K(29, 'Release'))),
+      panel('HP · Feedback · Dist',
+        row(K(84, 'Highpass'), K(103, 'Distortion')),
+        row(K(32, 'FB Freq'), K(33, 'FB Level')),
+        row(B(34, 'Grunge'))),
+      stack(
+        panel('Delay',
+          row(K(35, '1 Time'), K(99, '2 Time'), K(101, '3 Time'), K(37, 'Feedback 1')),
+          row(K(36, '1 Amount'), K(100, '2 Amount'), K(102, '3 Amount'), K(38, 'Feedback 2'))),
+        panel('Output', row(K(31, 'Prg Volume'), K(39, 'Out Hack'))))),
+    prow(
+      panel('External Input',
+        row(K(61, 'Input Vol'), S(62, 'Mode'), K(63, 'Input Hack')),
+        row(K(114, 'Peak Amt'), S(115, 'Peak Dest')),
+        row(K(116, 'EnvFol Amt'), S(117, 'EnvFol Dest'))),
+      panel('Envelope 3',
+        row(S(49, 'Destination'), K(48, 'Amount'), K(113, 'Velocity'), K(112, 'Delay')),
+        grow(ENV([50, 51, 52, 53], 112, 'mid')),
+        row(K(50, 'Attack'), K(51, 'Decay'), K(52, 'Sustain'), K(53, 'Release'))),
+      panel('LFOs', grow(...[[40, 1], [44, 2], [104, 3], [108, 4]].map(([b, n]) =>
+          grp('LFO ' + n, row(K(b, 'Frequency'), K(b + 2, 'Amount')), S(b + 1, 'Shape'), S(b + 3, 'Destination'))))),
+      panel('Modulators', ...[[85, 1], [90, 2], [93, 3], [96, 4]].map(([b, n]) =>
+        row(h('div', { class: 'tag' }, n), S(b, 'Source'), K(b + 1, 'Amount'), S(b + 2, 'Destination')))),
+      // compact columns at the end of the line: smaller scale, controllers 2 × 3, tempo/keys stacked
+      mini(panel('Controls', h('div', { class: 'cgrid' }, h('div', { class: 'ccell' }, K(70, 'Bend Range')),
+        ...[[120, 'Mod Wheel'], [122, 'Pressure'], [124, 'Breath'], [118, 'Velocity'], [126, 'Foot']].map(([b, n]) =>
+          h('div', { class: 'ccell' }, K(b, n), S(b + 1, 'Destination')))))),
+      mini(panel('Tempo · Keys',
+        vcol(K(66, 'Tempo'), S(67, 'Clock Divide'), S(54, 'Trigger'), S(71, 'Key Mode'), K(55, 'Key Off/Xpose')))))
   );
   $('#seqview').append(panel('Sequencer 4 × 16',
       row(K(66, 'Tempo'), S(67, 'Clock Divide'), S(54, 'Trigger'), S(71, 'Key Mode'), K(55, 'Key Off/Xpose')),
