@@ -33,9 +33,8 @@ Unlike the classic editors, it can **control several Evolvers at the same time**
 
 ### Program editor (view *Program*)
 - All 128 program parameters, grouped by section:
-  - Oscillators 1–4
+  - Oscillators 1–4, with sync, slop and noise level
   - Osc 3 & 4 mods
-  - Noise
   - External input
   - Envelope 3
   - Low-pass filter
@@ -45,13 +44,14 @@ Unlike the classic editors, it can **control several Evolvers at the same time**
   - Output
   - LFO 1–4
   - Modulators 1–4
-  - Controllers
+  - Controllers, with the pitch bend range
   - Tempo / Keys
 - Knobs:
   - Drag vertically. Hold **Shift** for fine steps.
   - Use the mouse wheel. Hold **Shift** for steps of 1.
   - **Double-click** a knob to type a value. Display units are accepted: `-24`, `+12`, `C2`, `OFF`.
 - List parameters use drop-downs, and two-state parameters use toggle buttons. Hover any control to see the parameter number and raw value.
+- Mod sources and destinations (LFOs, Env 3, mod slots, controllers, sequencer rows) open a searchable picker, grouped by category (Oscillators, Filter, Delay, LFO, Envelopes…). Type to filter (`delay 2`, `osc1`, `env att`), use the arrow keys and Enter to choose, Esc to close. The mouse wheel steps through the list.
 - Envelope graphs for the filter envelope, the amp envelope and Envelope 3 (including its delay).
 - **Live mode**: each change is sent at once as a SysEx *Program Parameter* message. Sending is throttled to about 12 ms per parameter.
 - **Incoming edits**: if the Evolver transmits parameter changes (as SysEx), the editor follows the front-panel knobs.

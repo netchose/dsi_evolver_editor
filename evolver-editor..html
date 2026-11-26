@@ -54,7 +54,6 @@ label{color:var(--dim);display:inline-flex;align-items:center;gap:0.417rem}
 .panel{background:var(--panel);border:1px solid var(--edge);border-radius:0.5rem;padding:0.5rem 0.667rem 0.667rem}
 .panel h3{margin:0 0 0.333rem;font-size:0.833rem;letter-spacing:.14em;color:var(--acc);text-transform:uppercase;font-weight:600}
 .row{display:flex;gap:0.167rem;align-items:flex-end;flex-wrap:nowrap}
-.col{display:flex;flex-direction:column;gap:0.333rem;align-items:stretch}
 .tag{width:1.333rem;color:var(--dim);font-weight:700;align-self:center;text-align:center}
 .sub{border-left:1px solid var(--edge);padding-left:0.5rem;margin-left:0.333rem}
 .grp{display:flex;flex-direction:column;gap:0.25rem;padding:0.333rem 0.5rem;border:1px solid var(--edge);border-radius:0.417rem;background:var(--panel2)}
@@ -69,6 +68,17 @@ label{color:var(--dim);display:inline-flex;align-items:center;gap:0.417rem}
 .sel{display:flex;flex-direction:column;gap:1px;padding:0.167rem 0.25rem}
 .sel .kl{font-size:0.833rem;color:var(--dim)}
 .sel select{font-size:0.917rem;background:#0f1215;color:var(--acc);border-color:#30363f}
+.sel .pick{font-size:0.917rem;background:#0f1215;color:var(--acc);border-color:#30363f;text-align:left;min-width:8.5rem;padding-right:1.5rem;position:relative;white-space:nowrap}
+.sel .pick::after{content:'⌕';position:absolute;right:0.4rem;color:var(--dim)}
+.pickpop{position:fixed;z-index:20;width:15rem;max-height:min(26rem,70vh);display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--acc);border-radius:0.417rem;box-shadow:0 0.5rem 1.5rem #000c}
+.pickpop input{margin:0.333rem;background:#0f1215}
+.plist{overflow:auto;padding-bottom:0.25rem}
+.plist .pg{padding:0.333rem 0.667rem 0.1rem;font-size:0.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.plist .pi{padding:0.15rem 0.667rem 0.15rem 1.167rem;cursor:pointer;white-space:nowrap}
+.plist .pi:hover{background:var(--panel2)}
+.plist .pi.cur{color:var(--acc)}
+.plist .pi.act{background:var(--acc-dim);color:#fff}
+.plist [hidden]{display:none}
 .tog{padding:0.167rem 0.25rem;display:flex;flex-direction:column;gap:1px;align-items:center}
 .tog button{font-size:0.833rem;padding:0.167rem 0.667rem;min-width:4rem}
 .tog button.on{background:var(--acc-dim);border-color:var(--acc);color:#fff}
@@ -255,6 +265,13 @@ const DEST = ['None','Osc1 Freq','Osc2 Freq','Osc3 Freq','Osc4 Freq','Osc All Fr
 const SEQ_DEST = DEST.concat(['Clock Mult','MIDI Note Out','MIDI Vel Out','MIDI ModW Out','MIDI Press Out','MIDI Breath Out','MIDI Foot Out']);
 const SRC = ['None','Seq 1','Seq 2','Seq 3','Seq 4','LFO 1','LFO 2','LFO 3','LFO 4','Filter Env','Amp Env','Env 3','Ext Peak','Ext Env Follow',
  'Pitch Bend','Mod Wheel','Pressure','Breath','Foot','Velocity','Note Number','Expression','Noise','Osc 3','Osc 4'];
+// Categories for the searchable picker: [group name, list indexes]. Indexes past the list length are skipped.
+const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+const DEST_GROUPS = [['', [0]], ['Oscillators', [...range(1, 10), ...range(13, 19)]], ['Noise / Ext In', [11, 12]],
+ ['Filter', [20, 21, 22, 64, 65, 66, 67, 23]], ['Amp / Pan', [24, 25]], ['Feedback / Distortion', [26, 27, 68]],
+ ['Delay', range(28, 37)], ['LFO', range(38, 47)], ['Envelopes', range(48, 63)], ['Clock / MIDI out', range(69, 75)]];
+const SRC_GROUPS = [['', [0]], ['Sequencer', range(1, 4)], ['LFO', range(5, 8)], ['Envelopes', range(9, 11)],
+ ['External input', [12, 13]], ['MIDI / Controllers', range(14, 21)], ['Audio', range(22, 24)]];
 const LFO_SHAPE = ['Triangle','Rev Saw','Saw','Pulse','Random'];
 const TRIG = ['SEQ/MIDI','SEQUENCER','MIDI','MIDI RST','MIDI GATE','MIDI G/R','EXT IN','EXT IN RST','EXT IN GATE','EXT IN G/R',
  'MIDI SEQ 1','MIDI SEQ 1R','EXT IN SQ 1','MIDI SQ SP'];
@@ -681,13 +698,75 @@ function K(id, label){
   svg.addEventListener('dblclick', edit); kv.addEventListener('dblclick', edit);
   return wrap;
 }
-// Select for list parameters
+// Select for list parameters (mod sources/destinations get the searchable picker)
 function S(id, label){
   const p = P[id];
+  const groups = p.list === SRC ? SRC_GROUPS : p.list === DEST || p.list === SEQ_DEST ? DEST_GROUPS : null;
+  if (groups) return PICK(id, label, groups);
   const sel = h('select', { title: `${p.name}  •  param ${id}`, onchange: e => setParam(cur(), id, +e.target.value) },
     p.list.map((t, i) => h('option', { value: i, title: p.desc ? p.desc[i] : null }, t)));
   reg(id, v => { sel.value = v; if (p.desc) sel.title = `${p.name}: ${p.desc[v] || ''}`; });
   return h('div', { class: 'sel' }, sel, h('div', { class: 'kl' }, label || p.name));
+}
+// Searchable, grouped picker: type to filter, arrows + Enter to choose, Esc to close
+function PICK(id, label, groups){
+  const p = P[id];
+  const btn = h('button', { class: 'pick', onclick: () => openPicker(btn, id, groups) });
+  btn.addEventListener('wheel', e => { e.preventDefault(); setParam(cur(), id, cur().data[id] + (e.deltaY < 0 ? -1 : 1)); }, { passive: false });
+  reg(id, v => { btn.textContent = p.list[v] ?? '?' + v; btn.title = `${p.name}  •  param ${id}\nClick to search, wheel to step`; });
+  return h('div', { class: 'sel' }, btn, h('div', { class: 'kl' }, label || p.name));
+}
+let picker = null;
+function closePicker(){ if (picker){ picker.el.remove(); document.removeEventListener('pointerdown', picker.out, true); picker.btn.focus(); picker = null; } }
+function openPicker(btn, id, groups){
+  if (picker && picker.btn === btn){ closePicker(); return; }
+  closePicker();
+  const p = P[id], curV = cur().data[id];
+  const inp = h('input', { type: 'text', placeholder: 'Search…', spellcheck: 'false' });
+  const list = h('div', { class: 'plist' });
+  const el = h('div', { class: 'pickpop' }, inp, list);
+  const items = [];                         // { v, row, hay, head }
+  groups.forEach(([g, idx]) => {
+    idx = idx.filter(i => i < p.list.length); if (!idx.length) return;
+    const head = g ? h('div', { class: 'pg' }, g) : null;
+    if (head) list.append(head);
+    idx.forEach(v => {
+      const row = h('div', { class: 'pi' + (v === curV ? ' cur' : ''), onclick: () => choose(v) }, p.list[v]);
+      const hay = (g + ' ' + p.list[v]).toLowerCase();
+      items.push({ v, row, head, hay: hay + ' ' + hay.replace(/ /g, '') });
+      list.append(row);
+    });
+  });
+  let act = 0;
+  const visible = () => items.filter(it => !it.row.hidden);
+  const mark = i => {
+    const vis = visible(); if (!vis.length) return;
+    act = (i + vis.length) % vis.length;
+    items.forEach(it => it.row.classList.remove('act'));
+    vis[act].row.classList.add('act'); vis[act].row.scrollIntoView({ block: 'nearest' });
+  };
+  const filter = () => {
+    const words = inp.value.toLowerCase().split(/\s+/).filter(Boolean);
+    items.forEach(it => { it.row.hidden = !words.every(w => it.hay.includes(w)); });
+    list.querySelectorAll('.pg').forEach(hd => { hd.hidden = !items.some(it => it.head === hd && !it.row.hidden); });
+    mark(words.length ? 0 : Math.max(0, items.findIndex(it => it.v === curV)));
+  };
+  const choose = v => { setParam(cur(), id, v); closePicker(); };
+  inp.addEventListener('input', filter);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown'){ e.preventDefault(); mark(act + 1); }
+    else if (e.key === 'ArrowUp'){ e.preventDefault(); mark(act - 1); }
+    else if (e.key === 'Enter'){ const it = visible()[act]; if (it) choose(it.v); }
+    else if (e.key === 'Escape') closePicker();
+  });
+  document.body.append(el);
+  const r = btn.getBoundingClientRect(), below = innerHeight - r.bottom;
+  el.style.left = Math.max(4, Math.min(r.left, innerWidth - el.offsetWidth - 4)) + 'px';
+  if (below < el.offsetHeight && r.top > below){ el.style.bottom = (innerHeight - r.top + 2) + 'px'; } else el.style.top = (r.bottom + 2) + 'px';
+  const out = e => { if (!el.contains(e.target) && e.target !== btn) closePicker(); };
+  document.addEventListener('pointerdown', out, true);
+  picker = { el, btn, out };
+  filter(); inp.focus();
 }
 // Two-state button
 function B(id, label){
@@ -712,7 +791,6 @@ function ENV(ids, delayId){
   return svg;
 }
 const row = (...k) => h('div', { class: 'row' }, ...k);
-const col = (...k) => h('div', { class: 'col' }, ...k);
 const grp = (title, ...k) => h('div', { class: 'grp' }, h('div', { class: 'gt' }, title), ...k);
 const panel = (title, ...k) => h('section', { class: 'panel' }, h('h3', {}, title), ...k);
 
@@ -876,13 +954,11 @@ function buildEditor(){
   };
   ed.append(
     panel('Oscillators',
-      row(B(65, 'Sync'), K(69, 'Osc Slop'), K(70, 'Bend Range')),
+      row(B(65, 'Sync'), K(69, 'Osc Slop'), K(60, 'Noise Level')),
       osc(1), osc(2), osc(3), osc(4)),
-    col(
-      panel('Osc 3 & 4 Mods',
-        row(K(73, 'FM 4>3'), K(75, 'RM 4>3'), S(74, 'Shape Mod 3')),
-        row(K(77, 'FM 3>4'), K(79, 'RM 3>4'), S(78, 'Shape Mod 4'))),
-      panel('Noise', row(K(60, 'Level')))),
+    panel('Osc 3 & 4 Mods',
+      row(K(73, 'FM 4>3'), K(75, 'RM 4>3'), S(74, 'Shape Mod 3')),
+      row(K(77, 'FM 3>4'), K(79, 'RM 3>4'), S(78, 'Shape Mod 4'))),
     panel('External Input',
       row(K(61, 'Input Vol'), S(62, 'Mode'), K(63, 'Input Hack')),
       row(K(114, 'Peak Amt'), S(115, 'Peak Dest')),
@@ -911,7 +987,7 @@ function buildEditor(){
       grp('LFO ' + n, row(K(b, 'Frequency'), K(b + 2, 'Amount')), S(b + 1, 'Shape'), S(b + 3, 'Destination'))))),
     panel('Modulators', ...[[85, 1], [90, 2], [93, 3], [96, 4]].map(([b, n]) =>
       row(h('div', { class: 'tag' }, n), S(b, 'Source'), K(b + 1, 'Amount'), S(b + 2, 'Destination')))),
-    panel('Controls', ...[[120, 'Mod Wheel'], [122, 'Pressure'], [124, 'Breath'], [118, 'Velocity'], [126, 'Foot']].map(([b, n]) =>
+    panel('Controls', row(K(70, 'Bend Range')), ...[[120, 'Mod Wheel'], [122, 'Pressure'], [124, 'Breath'], [118, 'Velocity'], [126, 'Foot']].map(([b, n]) =>
       row(S(b + 1, n + ' Dest'), K(b, 'Amount')))),
     panel('Tempo · Keys',
       row(K(66, 'Tempo'), S(67, 'Clock Divide'), S(54, 'Trigger')),
