@@ -49,13 +49,14 @@ Unlike the classic editors, it can **control several Evolvers at the same time**
 
 ### Sequencer (view *Sequencer*)
 - A 4 × 16 grid, with a destination for each row.
-- Tools:
-  - **Draw**: drag across steps to set values from 0 to 100.
-  - **RST**: marks the end of the sequence. Later steps are greyed out because they are not played.
-  - **OFF**: a rest. Only Seq 1 has it.
-  - **Clear**: sets a step to 0.
-  - Clicking again with the same tool undoes the change.
-  - Right-clicking a step cycles value → RST → OFF.
+- Drag across the steps to draw values from 0 to 100. Drawing is always on.
+- A **radio above each step of each track**:
+  - **▶ Play**: the step is played. Switching back to Play restores the value hidden by Off or Reset.
+  - **∅ Off** (Seq 1 only): a rest. Every track follows Seq 1's rests.
+  - **↺ Reset**: RST, the track restarts there. Later steps of that track are greyed out because they are not played.
+- **♪ Note mode** per track, available when the destination is an oscillator Freq or *MIDI Note Out*: steps show as note names (C3, D#3…). For an oscillator, 24 steps = 1 octave, counted from that oscillator's Freq, so odd values are quarter tones (shown with a +). The **↓ note** under ♪ is the lowest note of the track (step value 0): the sequence plays upwards from the oscillator Freq. Use the mouse wheel on it to move that Freq (Shift = one octave). For MIDI Note Out, note = value + 1 + master transpose.
+- **Scale** (root + mode: major, minor, modes, pentatonics, blues, whole tone) and a **Snap to scale** switch. When it is on, every pitch track (Osc Freq or MIDI Note Out destination, with or without ♪) only lands on notes of the scale, both when drawing and with the die.
+- **🎲 Die** per track, with a strength slider: each played step moves by a random amount. At 100 % the values are fully random; in note mode the range is ± 1 octave. With Snap on, the results of a pitch track stay on the scale.
 - Tempo, Clock Divide, Trigger mode, Key Mode and Key Off/Transpose.
 - **Start/Stop** and **Reset** buttons, which act like the front-panel buttons. **▶■ Seq** is also available from every view.
 
@@ -88,6 +89,15 @@ Unlike the classic editors, it can **control several Evolvers at the same time**
 ---
 
 ## Release notes
+
+### 2026-11-27
+**Changed**
+- **Sequencer** redesigned: a Play / Off / Reset radio above each step of each track (Off on Seq 1 only) replaces the Draw / RST / OFF / Clear tools (and the right-click shortcut). Drawing is always on.
+
+**New**
+- **Note mode** per sequencer track, with note names for oscillator and MIDI Note Out destinations.
+- **Scale** selector with a *Snap to scale* switch: drawing on note tracks lands only on notes of the scale.
+- **Die** per track to randomise it, with a strength setting.
 
 ### 2026-11-26
 **New**

@@ -157,7 +157,31 @@ label{color:var(--dim);display:inline-flex;align-items:center;gap:0.417rem}
 .seqrow{align-items:stretch}
 .seqrow .slab{align-self:center}
 .seqrow .sel{align-self:center}
-.stepnums{display:grid;grid-template-columns:repeat(16,1fr);gap:0.25rem;flex:1;min-width:40rem;color:var(--dim);font-family:var(--mono);text-align:center;font-size:0.833rem}
+.seqside{width:24rem;flex-shrink:0;display:flex;align-items:center;gap:0.5rem}
+.seqside .slab{width:3.2rem}
+.stepgrid{display:grid;grid-template-columns:repeat(16,1fr);gap:0.25rem;flex:1;min-width:40rem}
+.snum{color:var(--dim);font-family:var(--mono);text-align:center;font-size:0.833rem}
+.trkgrid{flex:1;min-width:40rem;display:flex;flex-direction:column;gap:2px}
+.trkgrid .cells{flex:none;min-width:0}
+.radio3{display:flex;border:1px solid var(--edge);border-radius:0.25rem;overflow:hidden}
+.radio3 button{flex:1;min-width:0;border:0;border-radius:0;padding:0.05rem 0;font-size:0.75rem;line-height:1.3;background:#0f1215;color:var(--dim)}
+.radio3 button+button{border-left:1px solid var(--edge)}
+.radio3 button:hover{color:#fff}
+.radio3 .m-play.on{background:var(--acc-dim);color:#fff}
+.radio3 .m-off.on{background:#173040;color:var(--cool)}
+.radio3 .m-reset.on{background:#4a1f1f;color:#ff8a80}
+.trkctl{display:flex;align-items:center;gap:0.333rem}
+.notebtn,.diebtn{font-size:1.083rem;padding:0.1rem 0.45rem}
+.notebtn.on{background:var(--acc-dim);border-color:var(--acc);color:#fff}
+.notebtn:disabled{opacity:.35;cursor:not-allowed;border-color:var(--edge)}
+.dice{display:flex;align-items:center;gap:0.25rem}
+.dcol{display:flex;flex-direction:column;align-items:center}
+.dstr{width:4.5rem;padding:0;accent-color:var(--acc)}
+.dpct{font-size:0.75rem;color:var(--dim);font-family:var(--mono)}
+.lowlab{color:var(--acc);cursor:ns-resize;min-height:1em}
+.snapbtn.on{background:var(--acc-dim);border-color:var(--acc);color:#fff}
+.seqtools select{background:#0f1215;color:var(--acc);border-color:#30363f}
+.cell.rest{background:#121c22}
 .cell span{font-size:0.917rem;top:0.25rem}
 #uiSize{width:auto}
 #libview{padding:0.833rem 1rem}
@@ -431,12 +455,16 @@ const STORE_KEY = 'evolverWebEditor.v1';
 let state = { active: 0, instances: [] };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const newInstance = n => ({ uid: uid(), label: 'Evolver ' + n, inId:'', inName:'', outId:'', outName:'', ch: 1,
-                            data: initData(), name: '', bank: 0, prog: 0, names: [[], [], [], []] });
+                            data: initData(), name: '', bank: 0, prog: 0, names: [[], [], [], []], seq: newSeqUi() });
+// Editor-only sequencer settings (never sent to the Evolver): note mode and die strength per track, scale,
+// and the step values hidden by a Reset/Off column, so that Play brings them back.
+const newSeqUi = () => ({ note: [false, false, false, false], dice: [30, 30, 30, 30], root: 0, scale: 0, snap: true, mem: {} });
 function load(){
   try {
     const s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
     if (s && Array.isArray(s.instances) && s.instances.length){
-      s.instances.forEach(i => { if (!Array.isArray(i.data) || i.data.length !== DATA_LEN) i.data = initData(); if (!Array.isArray(i.names) || i.names.length !== 4) i.names = [[], [], [], []]; });
+      s.instances.forEach(i => { if (!Array.isArray(i.data) || i.data.length !== DATA_LEN) i.data = initData(); if (!Array.isArray(i.names) || i.names.length !== 4) i.names = [[], [], [], []];
+        i.seq = Object.assign(newSeqUi(), i.seq || {}); });
       state = s;
     }
   } catch (e) { /* storage unavailable */ }
@@ -631,7 +659,9 @@ function refreshAll(){
   const d = cur().data;
   updaters.forEach((fns, id) => fns.forEach(f => f(d[id])));
   stepUpdaters.forEach((f, i) => f(d[128 + i]));
+  seqUiUpdaters.forEach(f => f());
 }
+const seqUiUpdaters = [];             // sequencer controls tied to the instance rather than to a parameter
 
 /* ============================================================
    UI widgets
@@ -828,68 +858,181 @@ const mini = el => { el.classList.add('mini'); return el; };
 const vcol = (...k) => h('div', { class: 'vcol' }, ...k);
 const panel = (title, ...k) => h('section', { class: 'panel' }, h('h3', {}, title), ...k);
 
-// 4 x 16 sequencer. Drag to draw, right-click a step to cycle rst / off.
-let seqTool = 'draw';
+// 4 x 16 sequencer. Drag to draw values; the radio above each step sets the whole column to Play / Off / Reset.
+const SCALES = [['Chromatic', [0,1,2,3,4,5,6,7,8,9,10,11]], ['Major', [0,2,4,5,7,9,11]], ['Minor', [0,2,3,5,7,8,10]],
+ ['Harmonic minor', [0,2,3,5,7,8,11]], ['Melodic minor', [0,2,3,5,7,9,11]], ['Dorian', [0,2,3,5,7,9,10]],
+ ['Phrygian', [0,1,3,5,7,8,10]], ['Lydian', [0,2,4,6,7,9,11]], ['Mixolydian', [0,2,4,5,7,9,10]], ['Locrian', [0,1,3,5,6,8,10]],
+ ['Major pentatonic', [0,2,4,7,9]], ['Minor pentatonic', [0,3,5,7,10]], ['Blues', [0,3,5,6,7,10]], ['Whole tone', [0,2,4,6,8,10]]];
+const OSC_FREQ_OF_DEST = { 1: 0, 2: 4, 3: 8, 4: 12, 5: 0 };   // Osc1..4 Freq, Osc All (named from Osc 1)
+const DEST_MIDI_NOTE = 70;
+// How a track's step values map to pitch, or null when its destination is not a pitch.
+// Oscillator: 24 steps = 1 octave, added to the oscillator's Freq. MIDI Note Out: note = value + 1 + master transpose.
+function trackPitch(inst, r){
+  const d = inst.data[56 + r];
+  if (d in OSC_FREQ_OF_DEST) return { base: inst.data[OSC_FREQ_OF_DEST[d]], k: 0.5, name: p => FMT.note(p) };
+  if (d === DEST_MIDI_NOTE) return { base: 1 + (inst._main ? inst._main[3] - 36 : 0), k: 1, name: p => NOTE[(p % 12 + 12) % 12] + (Math.floor(p / 12) - 1) };
+  return null;
+}
+const noteTrack = (inst, r) => inst.seq.note[r] ? trackPitch(inst, r) : null;
+function stepLabel(inst, r, v){
+  if (v === 101) return 'RST';
+  if (v === 102) return 'OFF';
+  const tp = noteTrack(inst, r); if (!tp) return '' + v;
+  const p = tp.base + v * tp.k;
+  return tp.name(Math.floor(p)) + (p % 1 ? '+' : '');    // '+' = a quarter tone above
+}
+// Nearest value (0–100) whose pitch is a whole semitone in the current scale
+function snapToScale(inst, tp, pitch){
+  const deg = SCALES[inst.seq.scale][1], root = inst.seq.root;
+  let best = 0, bd = Infinity;
+  for (let v = 0; v <= 100; v++){
+    const p = tp.base + v * tp.k;
+    if (p % 1 || !deg.includes(((p - root) % 12 + 12) % 12)) continue;
+    const dd = Math.abs(p - pitch);
+    if (dd < bd){ bd = dd; best = v; }
+  }
+  return best;
+}
+// Pitch → step value for a note-mode track: on the scale when Snap is on, otherwise the nearest value
+const pitchToValue = (inst, tp, pitch) => inst.seq.snap ? snapToScale(inst, tp, pitch) : Math.round((pitch - tp.base) / tp.k);
+// Step state: Play, Off (rest, Seq 1 only) or Reset (RST, end of this track)
+const stepMode = v => v === 101 ? 'reset' : v === 102 ? 'off' : 'play';
+function setStepMode(inst, idx, mode){
+  const v = inst.data[128 + idx], mem = inst.seq.mem;
+  const want = mode === 'reset' ? 101 : mode === 'off' && idx < 16 ? 102 : v <= 100 ? v : (mem[idx] ?? 0);
+  if (v <= 100 && want > 100) mem[idx] = v;          // keep the value so that Play brings it back
+  if (want <= 100) delete mem[idx];
+  setStep(inst, idx, want);
+  save();
+}
+// Die: moves each played step by a random amount. Strength 100 % = fully random (± 1 octave in note mode).
+function rollDice(inst, r){
+  const s = inst.seq.dice[r] / 100, tp = noteTrack(inst, r), pt = trackPitch(inst, r);
+  for (let c = 0; c < 16; c++){
+    const idx = r * 16 + c, v = inst.data[128 + idx];
+    if (v > 100) continue;
+    const u = Math.random() * 2 - 1;
+    const nv = tp ? pitchToValue(inst, tp, tp.base + v * tp.k + u * 12 * s)
+             : s >= 1 ? Math.round(Math.random() * 100) : v + Math.round(u * s * 100);
+    const cl = Math.max(0, Math.min(100, nv));
+    setStep(inst, idx, pt && inst.seq.snap ? snapToScale(inst, pt, pt.base + cl * pt.k) : cl);
+  }
+}
+
 function SEQ(){
   const box = h('div', { class: 'seq' });
-  const tools = [['draw', '✎ Draw values'], ['rst', 'RST — end of sequence'], ['off', 'OFF — rest (Seq 1)'], ['zero', 'Clear step']];
-  const tb = h('div', { class: 'seqtools' }, h('span', { class: 'kl' }, 'Click tool:'),
-    tools.map(([k, t]) => h('button', { 'data-tool': k, class: k === seqTool ? 'on' : '', onclick: e => {
-      seqTool = k; tb.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.tool === k));
-    } }, t)));
-  box.append(tb);
-  box.append(h('div', { class: 'seqrow' }, h('div', { class: 'slab' }), h('div', { class: 'sel', style: 'visibility:hidden;height:0;padding:0;overflow:hidden' }, h('select', {}, h('option', {}, SEQ_DEST[69])), h('div', { class: 'kl' }, '.')),
-    h('div', { class: 'stepnums' }, Array.from({ length: 16 }, (_, i) => h('div', {}, i + 1)))));
+  // scale bar
+  const rootSel = h('select', { title: 'Root note of the scale', onchange: e => { cur().seq.root = +e.target.value; save(); } },
+    NOTE.map((n, i) => h('option', { value: i }, n)));
+  const scaleSel = h('select', { title: 'Scale used by the note-mode tracks (drawing and dice snap to it)', onchange: e => { cur().seq.scale = +e.target.value; save(); } },
+    SCALES.map(([n], i) => h('option', { value: i }, n)));
+  const snapBtn = h('button', { class: 'snapbtn', title: 'When on, the note-mode tracks only take notes of the scale while you draw (and with the die)',
+    onclick: () => { cur().seq.snap = !cur().seq.snap; save(); updSnap(); } });
+  const updSnap = () => { const on = cur().seq.snap; snapBtn.classList.toggle('on', on); snapBtn.textContent = on ? '⊞ Snap to scale: on' : '⊞ Snap to scale: off'; };
+  seqUiUpdaters.push(() => { rootSel.value = cur().seq.root; scaleSel.value = cur().seq.scale; updSnap(); });
+  box.append(h('div', { class: 'seqtools' }, h('span', { class: 'kl' }, 'Scale'), rootSel, scaleSel, snapBtn));
+
+  // step numbers
+  box.append(h('div', { class: 'seqrow' }, h('div', { class: 'seqside' }),
+    h('div', { class: 'stepgrid' }, Array.from({ length: 16 }, (_, c) => h('div', { class: 'snum' }, c + 1)))));
+
+  const opts = [['play', '▶', 'Play: this step is played'],
+                ['off', '∅', 'Off: rest on this step (Seq 1 only, all tracks follow it)'],
+                ['reset', '↺', 'Reset: this track restarts here (RST)']];
+  const relabel = [];
   for (let r = 0; r < 4; r++){
     const cells = h('div', { class: 'cells' });
-    for (let c = 0; c < 16; c++){
-      const idx = r * 16 + c;
-      const fill = h('div', { class: 'fill' }), lab = h('span');
-      const cell = h('div', { class: 'cell', title: `Seq ${r + 1} step ${c + 1}` }, fill, lab);
-      cell.addEventListener('contextmenu', e => {
-        e.preventDefault();
-        const v = cur().data[128 + idx];
-        setStep(cur(), idx, v <= 100 ? 101 : (v === 101 && r === 0) ? 102 : 50);
-      });
-      cells.append(cell);
-      stepUpdaters[idx] = v => {
-        cell.classList.toggle('rst', v === 101); cell.classList.toggle('off', v === 102);
-        fill.style.height = v <= 100 ? v + '%' : '0';
-        lab.textContent = v <= 100 ? v : v === 101 ? 'RST' : 'OFF';
-        dimRow();
-      };
-    }
+    const cellUpd = [], radUpd = [];
+    // Play / (Off) / Reset radio above each step of this track; Off only exists on Seq 1
+    const radios = h('div', { class: 'stepgrid' }, Array.from({ length: 16 }, (_, c) => {
+      const mine = opts.filter(([m]) => r === 0 || m !== 'off');
+      const btns = mine.map(([m, t, tip]) => h('button', { class: 'm-' + m, title: `Seq ${r + 1} step ${c + 1} — ${tip}`,
+        onclick: () => setStepMode(cur(), r * 16 + c, m) }, t));
+      radUpd[c] = v => { const st = stepMode(v); btns.forEach((b, i) => b.classList.toggle('on', mine[i][0] === st)); };
+      return h('div', { class: 'radio3' }, btns);
+    }));
     // steps after the first RST of a row are not played: show them dimmed
     const dimRow = () => {
       const d = cur().data; let ended = false;
       [...cells.children].forEach((el, c) => { el.classList.toggle('after', ended); if (d[128 + r * 16 + c] === 101) ended = true; });
     };
+    for (let c = 0; c < 16; c++){
+      const idx = r * 16 + c;
+      const fill = h('div', { class: 'fill' }), lab = h('span');
+      const cell = h('div', { class: 'cell', title: `Seq ${r + 1} step ${c + 1}` }, fill, lab);
+      cells.append(cell);
+      cellUpd[c] = () => {
+        const v = cur().data[128 + idx];
+        cell.classList.toggle('rst', v === 101); cell.classList.toggle('off', v === 102);
+        cell.classList.toggle('rest', r > 0 && cur().data[128 + c] === 102);   // Seq 1 rests on this step
+        fill.style.height = v <= 100 ? v + '%' : '0';
+        lab.textContent = stepLabel(cur(), r, v);
+      };
+      stepUpdaters[idx] = () => {
+        cellUpd[c]();
+        dimRow(); radUpd[c](cur().data[128 + idx]);
+        if (r === 0) for (let k = 1; k < 4; k++) relabel[k]?.(c);
+      };
+    }
+    relabel[r] = c => c == null ? cellUpd.forEach(f => f()) : cellUpd[c]();
     let painting = false;
-    const colAt = e => { const rc = cells.getBoundingClientRect(); const c = Math.floor((e.clientX - rc.left) / rc.width * 16); return c >= 0 && c < 16 ? c : -1; };
     const paint = e => {
-      const c = colAt(e); if (c < 0) return;
       const rc = cells.getBoundingClientRect();
-      const v = Math.round((1 - (e.clientY - rc.top) / rc.height) * 100);
-      setStep(cur(), r * 16 + c, Math.max(0, Math.min(100, v)));
-    };
-    const applyTool = (e, tool) => {
-      const c = colAt(e); if (c < 0) return;
-      const idx = r * 16 + c, v = cur().data[128 + idx];
-      if (tool === 'off' && r !== 0){ log('OFF (rest) only exists on Seq 1 — the other rows follow its rests.'); return; }
-      const target = tool === 'rst' ? 101 : tool === 'off' ? 102 : 0;
-      setStep(cur(), idx, v === target && tool !== 'zero' ? 0 : target);   // clicking again toggles back
+      const c = Math.floor((e.clientX - rc.left) / rc.width * 16); if (c < 0 || c > 15) return;
+      const idx = r * 16 + c;
+      if (cur().data[128 + idx] > 100) return;          // Off / Reset steps are changed with the radio
+      let v = Math.max(0, Math.min(100, Math.round((1 - (e.clientY - rc.top) / rc.height) * 100)));
+      const tp = trackPitch(cur(), r);
+      if (tp && cur().seq.snap) v = snapToScale(cur(), tp, tp.base + v * tp.k);
+      setStep(cur(), idx, v);
     };
     cells.addEventListener('pointerdown', e => {
       if (e.button !== 0) return;
-      if (seqTool !== 'draw'){ applyTool(e, seqTool); return; }
       painting = true; cells.setPointerCapture(e.pointerId); paint(e);
     });
     cells.addEventListener('pointermove', e => { if (painting) paint(e); });
     cells.addEventListener('pointerup', () => painting = false);
     cells.addEventListener('pointercancel', () => painting = false);
-    box.append(h('div', { class: 'seqrow' }, h('div', { class: 'slab' }, 'Seq ' + (r + 1)), S(56 + r, 'Destination'), cells));
+
+    // track controls: note mode, die + strength
+    const noteBtn = h('button', { class: 'notebtn', onclick: () => {
+      const inst = cur(); if (!trackPitch(inst, r)) return;
+      inst.seq.note[r] = !inst.seq.note[r]; save(); updTrack();
+    } }, '♪');
+    const str = h('input', { type: 'range', min: 0, max: 100, step: 5, class: 'dstr',
+      oninput: e => { cur().seq.dice[r] = +e.target.value; save(); updTrack(); } });
+    const pct = h('span', { class: 'dpct' });
+    // lowest note of the track (value 0) = the oscillator's Freq; the wheel moves it
+    const low = h('div', { class: 'dpct lowlab' });
+    low.addEventListener('wheel', e => {
+      const d = cur().data[56 + r]; if (!(d in OSC_FREQ_OF_DEST)) return;
+      e.preventDefault(); const id = OSC_FREQ_OF_DEST[d];
+      setParam(cur(), id, cur().data[id] + (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 12 : 1));
+    }, { passive: false });
+    const dieBtn = h('button', { class: 'diebtn', onclick: () => rollDice(cur(), r) }, '🎲');
+    const updTrack = () => {
+      const inst = cur(), tp = trackPitch(inst, r), on = inst.seq.note[r] && !!tp;
+      noteBtn.classList.toggle('on', on); noteBtn.disabled = !tp;
+      noteBtn.title = tp ? `Note mode ${on ? 'on' : 'off'}: show the steps as note names` :
+        'Note mode needs an Osc Freq or MIDI Note Out destination';
+      str.value = inst.seq.dice[r]; pct.textContent = inst.seq.dice[r] + '%';
+      const d = inst.data[56 + r];
+      low.textContent = tp ? '↓' + tp.name(tp.base) : '';
+      low.title = !tp ? '' : d in OSC_FREQ_OF_DEST
+        ? `Lowest note of Seq ${r + 1} (step value 0) = ${P[OSC_FREQ_OF_DEST[d]].name} (${tp.name(tp.base)}). The sequence plays upwards from it.\nWheel to move it by a semitone, Shift+wheel by an octave.`
+        : `Lowest note of Seq ${r + 1} (step value 0) = MIDI note 1 + master transpose (${tp.name(tp.base)}).`;
+      const tipD = `Randomise Seq ${r + 1} — strength ${inst.seq.dice[r]} %` + (on ? ' (100 % = ± 1 octave)' : ' (100 % = fully random)');
+      dieBtn.title = tipD; str.title = tipD;
+      relabel[r]();
+    };
+    seqUiUpdaters.push(updTrack);
+    reg(56 + r, updTrack);
+    [0, 4, 8, 12].forEach(id => reg(id, updTrack));     // the oscillator Freq moves the note names
+    const side = h('div', { class: 'seqside' }, h('div', { class: 'slab' }, 'Seq ' + (r + 1)), S(56 + r, 'Destination'),
+      h('div', { class: 'trkctl' }, h('div', { class: 'dcol' }, noteBtn, low), h('div', { class: 'dice' }, dieBtn, h('div', { class: 'dcol' }, str, pct))));
+    box.append(h('div', { class: 'seqrow' }, side, h('div', { class: 'trkgrid' }, radios, cells)));
   }
-  box.append(h('div', { class: 'hint' }, 'Draw: drag across the steps. RST / OFF / Clear: click a step (click again to undo). Shortcut: right-click a step cycles value → RST → OFF. Steps after an RST are greyed out (not played).'));
+  box.append(h('div', { class: 'hint' }, 'Drag across the steps to draw. Above each step: ▶ Play · ∅ Off (rest, Seq 1 only) · ↺ Reset (this track restarts there). ♪ shows a pitch track as notes; with Snap to scale on, every pitch track (Osc Freq, MIDI Note Out) only lands on notes of the scale when drawing or rolling the die. ↓ = lowest note of the track (the oscillator Freq; wheel to move it); 🎲 randomises the track, the slider sets how far. Steps after a Reset are greyed out (not played).'));
   return box;
 }
 
