@@ -72,7 +72,7 @@ Unlike the classic editors, it can **control several Evolvers at the same time**
 - **− / +** on either side of the program name: go to the previous or next program, the same way as **Get**. It wraps across banks (A128 → B001, A001 → D128).
 - **Receive**: requests the edit buffer, the current bank/program and its name.
 - **Send**: sends the editor content to the Evolver's edit buffer. Nothing is stored.
-- **Write…**: stores the program and its name to the selected bank/program, after a confirmation.
+- **Write…**: opens a dialog to choose the destination bank and program (by default the program you started from) and the name. It shows the name of the program that will be replaced, when it is known (read the names in *Library* first), so you can keep the original and save your edit somewhere else. The editor then points at the new location.
 - **Init**: starts from a basic patch:
   - Osc 1 saw at full level; Osc 2–4 off
   - Low-pass filter wide open, no resonance
@@ -95,6 +95,7 @@ Unlike the classic editors, it can **control several Evolvers at the same time**
 - **Sequencer** redesigned: a Play / Off / Reset radio above each step of each track (Off on Seq 1 only) replaces the Draw / RST / OFF / Clear tools (and the right-click shortcut). Drawing is always on.
 
 **New**
+- **Write to another location**: the *Write…* dialog lets you pick the destination bank/program and rename the copy, so the original preset is kept.
 - **Note mode** per sequencer track, with note names for oscillator and MIDI Note Out destinations.
 - **Scale** selector with a *Snap to scale* switch: drawing on note tracks lands only on notes of the scale.
 - **Die** per track to randomise it, with a strength setting.

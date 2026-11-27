@@ -131,6 +131,13 @@ label{color:var(--dim);display:inline-flex;align-items:center;gap:0.417rem}
 .modal .box{background:var(--panel);border:1px solid var(--edge);border-radius:0.667rem;padding:1.5rem 1.667rem;max-width:35rem}
 .modal .box p{margin:0 0 1.167rem;font-size:1.083rem}
 .modal .btns{display:flex;justify-content:flex-end;gap:0.667rem}
+#wmodal .box{min-width:34rem}
+#wmodal h2{margin:0 0 0.833rem;font-size:1.167rem;color:var(--acc);letter-spacing:.1em;text-transform:uppercase}
+.wgrid{display:flex;gap:0.833rem;flex-wrap:wrap}
+#wProg{max-width:16rem}
+#wInfo{margin:0.833rem 0 1.167rem;font-size:0.917rem;color:var(--dim);min-height:2.5em}
+#wInfo b{color:var(--txt);font-weight:600}
+#wInfo .bad{color:var(--bad)}
 #gmodal .box{max-width:64rem;width:calc(100% - 3rem);max-height:calc(100vh - 3rem);overflow:auto}
 #gmodal h2{margin:0 0 0.25rem;font-size:1.167rem;color:var(--acc);letter-spacing:.1em;text-transform:uppercase}
 #gmodal h3{margin:1rem 0 0.5rem;font-size:0.833rem;letter-spacing:.14em;color:var(--acc);text-transform:uppercase;font-weight:600}
@@ -243,7 +250,7 @@ button.big{padding:0.4rem 1rem}
   <span class="sep"></span>
   <button id="btnReceive" title="Receive the edit buffer from the Evolver">Receive</button>
   <button id="btnSend" title="Send the editor content to the Evolver edit buffer (not saved)">Send</button>
-  <button id="btnWrite" class="warn" title="Store into Bank/Prog on the Evolver">Write…</button>
+  <button id="btnWrite" class="warn" title="Store the program on the Evolver: choose the destination bank and program">Write…</button>
   <label title="Send each edit to the Evolver as you turn a knob"><input type="checkbox" id="live" checked> Live</label>
   <button id="btnRun" title="Start / stop the Evolver sequencer">▶■ Seq</button>
   <button id="btnNote" title="Hold to play C3 on the selected channel">♪ Test</button>
@@ -266,6 +273,16 @@ button.big{padding:0.4rem 1rem}
   <div class="hint" id="gStatus"></div>
   <div class="gbody" id="gBody"></div>
   <div class="btns" style="margin-top:1.167rem"><button id="gReload" title="Request the Main parameters from the Evolver again">Reload</button><button id="gClose">Close</button></div>
+</div></div>
+<div id="wmodal" class="modal" hidden><div class="box">
+  <h2>Write program</h2>
+  <div class="wgrid">
+    <label>Name <input type="text" id="wName" maxlength="16" spellcheck="false"></label>
+    <label>Bank <select id="wBank"></select></label>
+    <label>Prog <select id="wProg"></select></label>
+  </div>
+  <p id="wInfo"></p>
+  <div class="btns"><button id="wCancel">Cancel</button><button id="wOk" class="warn">Write</button></div>
 </div></div>
 <div id="modal" class="modal" hidden><div class="box"><p id="modalText"></p><div class="btns"><button id="modalNo">Cancel</button><button id="modalYes" class="warn">Confirm</button></div></div></div>
 
@@ -1251,6 +1268,42 @@ function setView(v){
   document.querySelectorAll('#views button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
 }
 function applyUi(){ document.documentElement.style.setProperty('--ui', state.ui || 1.5); }
+// Write dialog: choose the destination (default = the program loaded) and the name; shows what will be replaced
+function openWrite(inst){
+  const wb = $('#wBank'), wp = $('#wProg'), info = $('#wInfo'), nm = $('#wName');
+  const esc = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const fillProgs = b => {
+    wp.textContent = '';
+    for (let p = 0; p < 128; p++){
+      const n = inst.names[b][p];
+      wp.append(h('option', { value: p }, String(p + 1).padStart(3, '0') + (n != null ? '  ' + (n.trim() || '(empty name)') : '')));
+    }
+  };
+  const upd = () => {
+    const b = +wb.value, p = +wp.value, there = inst.names[b][p], same = b === inst.bank && p === inst.prog;
+    info.innerHTML = same
+      ? `<span class="bad">This is the program you started from (${locName(b, p)}): its original will be replaced.</span>`
+      : `The original at ${locName(inst.bank, inst.prog)} stays unchanged. ` +
+        (there != null ? `<span class="bad">${locName(b, p)} currently holds <b>${esc(there.trim() || '(empty name)')}</b>, which will be replaced.</span>`
+                       : `${locName(b, p)}: name unknown (read the names in the Library view to see what is stored there). It will be replaced.`);
+    $('#wOk').textContent = 'Write to ' + locName(b, p);
+  };
+  wb.textContent = ''; BANKS.forEach((n, i) => wb.append(h('option', { value: i }, n)));
+  wb.value = inst.bank; fillProgs(inst.bank); wp.value = inst.prog;
+  nm.value = inst.name;
+  wb.onchange = () => { const keep = wp.value; fillProgs(+wb.value); wp.value = keep; upd(); };
+  wp.onchange = upd;
+  upd();
+  const m = $('#wmodal'); m.hidden = false; wp.focus();
+  const close = ok => {
+    m.hidden = true; m.onkeydown = null;
+    if (!ok) return;
+    if (nm.value !== inst.name){ inst.name = nm.value; renderTabs(); }
+    writeProgram(inst, +wb.value, +wp.value);
+  };
+  $('#wOk').onclick = () => close(true); $('#wCancel').onclick = () => close(false);
+  m.onkeydown = e => { if (e.key === 'Escape') close(false); if (e.key === 'Enter' && e.target.tagName !== 'SELECT') close(true); };
+}
 function confirmBox(text){
   return new Promise(res => {
     $('#modalText').textContent = text; $('#modal').hidden = false;
@@ -1386,11 +1439,7 @@ function wire(){
   $('#btnNext').onclick = () => stepProg(1);
   $('#btnReceive').onclick = () => requestEdit(cur());
   $('#btnSend').onclick = () => sendEdit(cur());
-  $('#btnWrite').onclick = async () => {
-    const inst = cur(), b = +$('#bankSel').value, p = +$('#progSel').value;
-    if (!needOut(inst)) return;
-    if (await confirmBox(`Write "${inst.name || 'untitled'}" to ${locName(b, p)} on ${inst.label}? The program stored there will be replaced.`)) writeProgram(inst, b, p);
-  };
+  $('#btnWrite').onclick = () => { if (needOut(cur())) openWrite(cur()); };
   const noteOn = () => { const i = cur(); send(i, [0x90 | (i.ch - 1), 48, 100]); };
   const noteOff = () => { const i = cur(); send(i, [0x80 | (i.ch - 1), 48, 0]); };
   $('#btnRun').onclick = () => startStop(cur());
